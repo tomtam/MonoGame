@@ -58,7 +58,6 @@ namespace Microsoft.Xna.Framework.Graphics
 	    private readonly GraphicsDevice _device;
 
 	    private int _startIndex;
-	    private Texture2D _currentTexture;
 
 #if DIRECTX
 
@@ -150,7 +149,8 @@ namespace Microsoft.Xna.Framework.Graphics
 			}
 
             var vertexCount = 0;
-            
+		    Texture2D currentTexture = null;
+
 #if DIRECTX
             _device.Indices = _indexBuffer;
             _device.SetVertexBuffer(_vertexBuffer);
@@ -160,11 +160,11 @@ namespace Microsoft.Xna.Framework.Graphics
 			{
 				// If the texture changed, we need to flush 
 				// and bind the new texture.
-                if (item.Texture != _currentTexture)
+                if (item.Texture != currentTexture)
 				{
                     FlushVertexArray(_startIndex, vertexCount);
-                    _currentTexture = item.Texture;
-                    _device.Textures[0] = _currentTexture;
+                    currentTexture = item.Texture;
+                    _device.Textures[0] = currentTexture;
                     _startIndex += vertexCount;
                     vertexCount = 0;
 				}
@@ -238,7 +238,6 @@ namespace Microsoft.Xna.Framework.Graphics
             _vertexBuffer.Dispose();
             _indexBuffer.Dispose();
 #endif
-			_currentTexture = null;
         }
 	}
 }
