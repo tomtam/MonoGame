@@ -215,7 +215,7 @@ namespace Microsoft.Xna.Framework.Graphics
 
         public void SetData<T>(int offsetInBytes, T[] data, int startIndex, int elementCount, int vertexStride) where T : struct
         {
-            SetData<T>(0, data, startIndex, elementCount, VertexDeclaration.VertexStride, SetDataOptions.Discard);
+            SetData<T>(offsetInBytes, data, startIndex, elementCount, VertexDeclaration.VertexStride, SetDataOptions.Discard);
         }
         		
 		public void SetData<T>(T[] data, int startIndex, int elementCount) where T : struct
