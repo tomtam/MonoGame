@@ -11,6 +11,7 @@ namespace Microsoft.Xna.Framework.Graphics
 		public VertexPositionColorTexture vertexTR;
 		public VertexPositionColorTexture vertexBL;
 		public VertexPositionColorTexture vertexBR;
+
 		public SpriteBatchItem ()
 		{
 			vertexTL = new VertexPositionColorTexture();

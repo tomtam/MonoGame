@@ -5,7 +5,7 @@ namespace Microsoft.Xna.Framework.Graphics
 {
 	public class SpriteBatch : GraphicsResource
 	{
-	    readonly SpriteBatcher _batcher;
+	    SpriteBatcher _batcher;
 
 		SpriteSortMode _sortMode;
 		BlendState _blendState;
@@ -377,8 +377,15 @@ namespace Microsoft.Xna.Framework.Graphics
                         _spriteEffect.Dispose();
                         _spriteEffect = null;
                     }
+
+                    if (_batcher != null)
+                    {
+                        _batcher.Dispose();
+                        _batcher = null;
+                    }
                 }
             }
+
             base.Dispose(disposing);
         }
 	}

@@ -39,44 +39,68 @@
 // #endregion License
 // 
 
+using System;
 using System.Collections.Generic;
 
 namespace Microsoft.Xna.Framework.Graphics
 {
-	internal class SpriteBatcher
+    internal class SpriteBatcher : IDisposable
 	{
-		private const int InitialBatchSize = 256;
-		private const int InitialVertexArraySize = 256;
+        private const int MaxBatchSize = 2048;
+        private const int VerticesPerSprite = 4;
+        private const int IndicesPerSprite = 6;
+        private const int MaxVertexIndex = MaxBatchSize * VerticesPerSprite;
 
-	    readonly List<SpriteBatchItem> _batchItemList;
+	    private readonly List<SpriteBatchItem> _batchItemList;
 
-	    readonly Queue<SpriteBatchItem> _freeBatchItemQueue;
+	    private readonly Queue<SpriteBatchItem> _freeBatchItemQueue;
 
-	    readonly GraphicsDevice _device;
+	    private readonly GraphicsDevice _device;
 
-        short[] _index;
+	    private int _startIndex;
+	    private Texture2D _currentTexture;
 
-		VertexPositionColorTexture[] _vertexArray;
+#if DIRECTX
+
+	    private readonly IndexBuffer _indexBuffer;
+        private readonly DynamicVertexBuffer _vertexBuffer;
+
+#else
+
+        private readonly short[] _index;
+
+#endif
+
+        private readonly VertexPositionColorTexture[] _vertexArray;
 
 		public SpriteBatcher (GraphicsDevice device)
 		{
             _device = device;
 
-			_batchItemList = new List<SpriteBatchItem>(InitialBatchSize);
-			_freeBatchItemQueue = new Queue<SpriteBatchItem>(InitialBatchSize);
+            _batchItemList = new List<SpriteBatchItem>(MaxBatchSize);
+			_freeBatchItemQueue = new Queue<SpriteBatchItem>(MaxBatchSize);
 
-            _index = new short[6 * InitialVertexArraySize];
-            for (var i = 0; i < InitialVertexArraySize; i++)
+            _vertexArray = new VertexPositionColorTexture[MaxBatchSize * VerticesPerSprite];
+
+            var index = new short[IndicesPerSprite * MaxBatchSize];
+            for (var i = 0; i < MaxBatchSize; i++)
             {
-                _index[i * 6 + 0] = (short)(i * 4);
-                _index[i * 6 + 1] = (short)(i * 4 + 1);
-                _index[i * 6 + 2] = (short)(i * 4 + 2);
-                _index[i * 6 + 3] = (short)(i * 4 + 1);
-                _index[i * 6 + 4] = (short)(i * 4 + 3);
-                _index[i * 6 + 5] = (short)(i * 4 + 2);
+                index[i * IndicesPerSprite + 0] = (short)(i * VerticesPerSprite);
+                index[i * IndicesPerSprite + 1] = (short)(i * VerticesPerSprite + 1);
+                index[i * IndicesPerSprite + 2] = (short)(i * VerticesPerSprite + 2);
+                index[i * IndicesPerSprite + 3] = (short)(i * VerticesPerSprite + 1);
+                index[i * IndicesPerSprite + 4] = (short)(i * VerticesPerSprite + 3);
+                index[i * IndicesPerSprite + 5] = (short)(i * VerticesPerSprite + 2);
             }
 
-			_vertexArray = new VertexPositionColorTexture[4*InitialVertexArraySize];
+#if DIRECTX
+            _indexBuffer = new IndexBuffer(device, IndexElementSize.SixteenBits, index.Length, BufferUsage.WriteOnly);
+            _indexBuffer.SetData(index);
+
+            _vertexBuffer = new DynamicVertexBuffer(device, VertexPositionColorTexture.VertexDeclaration, _vertexArray.Length, BufferUsage.WriteOnly);
+#else
+            _index = index;
+#endif
 		}
 		
 		public SpriteBatchItem CreateBatchItem()
@@ -125,73 +149,76 @@ namespace Microsoft.Xna.Framework.Graphics
 				break;
 			}
 
-			// setup the vertexArray array
-			var startIndex = 0;
-            var index = 0;
-			Texture2D tex = null;
+            var vertexCount = 0;
+            
+#if DIRECTX
+            _device.Indices = _indexBuffer;
+            _device.SetVertexBuffer(_vertexBuffer);
+#endif
 
-			// make sure the vertexArray has enough space
-			if ( _batchItemList.Count*4 > _vertexArray.Length )
-				ExpandVertexArray( _batchItemList.Count );
-
-			foreach ( var item in _batchItemList )
+			foreach (var item in _batchItemList)
 			{
-				// if the texture changed, we need to flush and bind the new texture
-				var shouldFlush = item.Texture != tex;
-				if ( shouldFlush )
+				// If the texture changed, we need to flush 
+				// and bind the new texture.
+                if (item.Texture != _currentTexture)
 				{
-					FlushVertexArray( startIndex, index );
+                    FlushVertexArray(_startIndex, vertexCount);
+                    _currentTexture = item.Texture;
+                    _device.Textures[0] = _currentTexture;
+                    _startIndex += vertexCount;
+                    vertexCount = 0;
+				}
 
-					tex = item.Texture;
-                    startIndex = index = 0;
-                    _device.Textures[0] = tex;	                   
+                // If the we don't have enough space for another 
+                // sprite we need to flush the batch too.
+                if (_startIndex + vertexCount >= MaxVertexIndex)
+                {
+                    FlushVertexArray(_startIndex, vertexCount);
+                    _startIndex = vertexCount = 0;
                 }
 
-				// store the SpriteBatchItem data in our vertexArray
-				_vertexArray[index++] = item.vertexTL;
-				_vertexArray[index++] = item.vertexTR;
-				_vertexArray[index++] = item.vertexBL;
-				_vertexArray[index++] = item.vertexBR;
+				// Copy the vertex data to the vertex array.
+                _vertexArray[vertexCount++] = item.vertexTL;
+                _vertexArray[vertexCount++] = item.vertexTR;
+                _vertexArray[vertexCount++] = item.vertexBL;
+                _vertexArray[vertexCount++] = item.vertexBR;
 
                 // Release the texture and return the item to the queue.
                 item.Texture = null;
 				_freeBatchItemQueue.Enqueue( item );
 			}
 
-			// flush the remaining vertexArray data
-			FlushVertexArray(startIndex, index);
-			
+			// Flush the remaining sprites.
+            FlushVertexArray(_startIndex, vertexCount);
+            _startIndex += vertexCount;
+
 			_batchItemList.Clear();
 		}
-				
-		void ExpandVertexArray( int batchSize )
+
+        void FlushVertexArray(int start, int vertexCount)
 		{
-			// increase the size of the vertexArray
-			var newCount = _vertexArray.Length / 4;
-			
-			while ( batchSize*4 > newCount )
-				newCount += 128;
-
-            _index = new short[6 * newCount];
-            for (var i = 0; i < newCount; i++)
-            {
-                _index[i * 6 + 0] = (short)(i * 4);
-                _index[i * 6 + 1] = (short)(i * 4 + 1);
-                _index[i * 6 + 2] = (short)(i * 4 + 2);
-                _index[i * 6 + 3] = (short)(i * 4 + 1);
-                _index[i * 6 + 4] = (short)(i * 4 + 3);
-                _index[i * 6 + 5] = (short)(i * 4 + 2);
-            }
-
-			_vertexArray = new VertexPositionColorTexture[4*newCount];
-		}
-
-		void FlushVertexArray( int start, int end )
-		{
-            if ( start == end )
+            if (vertexCount <= 0)
                 return;
 
-            var vertexCount = end - start;
+#if DIRECTX
+
+            _vertexBuffer.SetData(start * VertexPositionColorTexture.VertexDeclaration.VertexStride, 
+                _vertexArray,
+                0, 
+                vertexCount, 
+                start == 0 ? SetDataOptions.Discard : SetDataOptions.NoOverwrite);
+
+            _device.DrawIndexedPrimitives(PrimitiveType.TriangleList, 
+                start, 
+                0, 
+                vertexCount, 
+                0, 
+                (vertexCount / VerticesPerSprite) * 2);
+#else
+            
+            // UserPrimitive rendering on GL is optimized to render
+            // directly from system memory, so we use that here instead
+            // of the DynamicVertexBuffer implementation.
 
             _device.DrawUserIndexedPrimitives(
                 PrimitiveType.TriangleList, 
@@ -202,7 +229,17 @@ namespace Microsoft.Xna.Framework.Graphics
                 0, 
                 (vertexCount / 4) * 2, 
                 VertexPositionColorTexture.VertexDeclaration);
-		}
+#endif
+        }
+
+        public void Dispose()
+        {
+#if DIRECTX
+            _vertexBuffer.Dispose();
+            _indexBuffer.Dispose();
+#endif
+			_currentTexture = null;
+        }
 	}
 }
 
