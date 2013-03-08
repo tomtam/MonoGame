@@ -128,7 +128,9 @@ namespace Microsoft.Xna.Framework {
 		public event EventHandler<EventArgs> ClientSizeChanged;
 		public event EventHandler<EventArgs> OrientationChanged;
 		public event EventHandler<EventArgs> ScreenDeviceNameChanged;
+
 #if WINDOWS || LINUX
+
 		/// <summary>
 		/// Use this event to retrieve text for objects like textbox's.
 		/// This event is not raised by noncharacter keys.
@@ -185,10 +187,11 @@ namespace Microsoft.Xna.Framework {
 		}
 
 #if WINDOWS || LINUX
-        	protected void OnTextInput(object sender, TextInputEventArgs e)
-        	{
-            		TextInput(sender, e);
-        	}
+		protected void OnTextInput(object sender, TextInputEventArgs e)
+		{
+			if (TextInput != null)
+				TextInput(sender, e);
+		}
 #endif
 
 		protected internal abstract void SetSupportedOrientations (DisplayOrientation orientations);
