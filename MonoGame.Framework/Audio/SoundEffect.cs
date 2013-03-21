@@ -57,6 +57,7 @@ namespace Microsoft.Xna.Framework.Audio
 {
     public sealed class SoundEffect : IDisposable
     {
+        private bool isDisposed = false;
 #if DIRECTX
         internal DataStream _dataStream;
         internal AudioBuffer _buffer;
@@ -332,6 +333,14 @@ namespace Microsoft.Xna.Framework.Audio
 		
 		#region IDisposable Members
 
+        public bool IsDisposed
+        {
+            get
+            {
+                return isDisposed;
+            }
+        }
+
         public void Dispose()
         {
 #if DIRECTX
@@ -339,6 +348,7 @@ namespace Microsoft.Xna.Framework.Audio
 #else
             _sound.Dispose();
 #endif
+            isDisposed = true;
         }
 
         #endregion
@@ -461,11 +471,11 @@ namespace Microsoft.Xna.Framework.Audio
 #if !WINRT && DEBUG
             flags |= XAudio2Flags.DebugEngine;
 #endif
-            // This cannot fail.
-            Device = new XAudio2(flags, ProcessorSpecifier.DefaultProcessor);
-
             try
             {
+                // This cannot fail.
+                Device = new XAudio2(flags, ProcessorSpecifier.DefaultProcessor);
+
                 Device.StartEngine();
 
                 // Just use the default device.
@@ -491,8 +501,12 @@ namespace Microsoft.Xna.Framework.Audio
             {
                 // Release the device and null it as
                 // we have no audio support.
-                Device.Dispose();
-                Device = null;
+                if (Device != null)
+                {
+                    Device.Dispose();
+                    Device = null;
+                }
+
                 MasterVoice = null;
             }
 
