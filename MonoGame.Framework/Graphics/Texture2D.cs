@@ -135,16 +135,21 @@ namespace Microsoft.Xna.Framework.Graphics
         }
 
         public Texture2D(GraphicsDevice graphicsDevice, int width, int height)
-            : this(graphicsDevice, width, height, false, SurfaceFormat.Color, SurfaceType.Texture)
+            : this(graphicsDevice, width, height, false, SurfaceFormat.Color, SurfaceType.Texture, false)
         {
         }
 
         public Texture2D(GraphicsDevice graphicsDevice, int width, int height, bool mipmap, SurfaceFormat format)
-            : this(graphicsDevice, width, height, mipmap, format, SurfaceType.Texture)
+            : this(graphicsDevice, width, height, mipmap, format, SurfaceType.Texture, false)
         {
         }
-		
-		protected Texture2D(GraphicsDevice graphicsDevice, int width, int height, bool mipmap, SurfaceFormat format, SurfaceType type)
+
+        protected Texture2D(GraphicsDevice graphicsDevice, int width, int height, bool mipmap, SurfaceFormat format, SurfaceType type)
+            : this(graphicsDevice, width, height, mipmap, format, type, false)
+        {
+        }
+
+        protected Texture2D(GraphicsDevice graphicsDevice, int width, int height, bool mipmap, SurfaceFormat format, SurfaceType type, bool shared)
 		{
             if (graphicsDevice == null)
                 throw new ArgumentNullException("Graphics Device Cannot Be Null");
@@ -186,11 +191,14 @@ namespace Microsoft.Xna.Framework.Graphics
                 }
             }
 
+            if (shared)
+                desc.OptionFlags |= SharpDX.Direct3D11.ResourceOptionFlags.Shared;
+
             _texture = new SharpDX.Direct3D11.Texture2D(graphicsDevice._d3dDevice, desc);
 
 #elif PSM
             PixelBufferOption option = PixelBufferOption.None;
-            if (renderTarget)
+            if (type == SurfaceType.RenderTarget)
 			    option = PixelBufferOption.Renderable;
             _texture2D = new Sce.PlayStation.Core.Graphics.Texture2D(width, height, mipmap, PSSHelper.ToFormat(format),option);
 #else
@@ -1099,8 +1107,9 @@ namespace Microsoft.Xna.Framework.Graphics
             // create a renderbuffer object to store depth info
             GL.BindRenderbuffer(All.Renderbuffer, renderBufferID);
             GraphicsExtensions.CheckGLError();
-            GL.RenderbufferStorage(All.Renderbuffer, All.DepthComponent24Oes,
-                Width, Height);
+
+			var glDepthFormat = GraphicsCapabilities.SupportsDepth24 ? All.DepthComponent24Oes : GraphicsCapabilities.SupportsDepthNonLinear ? (OpenTK.Graphics.ES20.All)0x8E2C /*GLDepthComponent16NonLinear */: All.DepthComponent16;
+			GL.RenderbufferStorage(All.Renderbuffer, glDepthFormat, Width, Height);
             GraphicsExtensions.CheckGLError();
 
             // attach the renderbuffer to depth attachment point
