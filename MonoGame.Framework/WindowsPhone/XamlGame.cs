@@ -110,7 +110,7 @@ namespace MonoGame.Framework.WindowsPhone
                 _host.RequestAdditionalFrame();
             }
 
-            public override void PrepareResources(DateTime presentTargetTime, ref DrawingSizeF desiredRenderTargetSize)
+            public override void PrepareResources(DateTime presentTargetTime, ref Size2F desiredRenderTargetSize)
             {
                 WindowsPhoneGameWindow.Width = desiredRenderTargetSize.Width;
                 WindowsPhoneGameWindow.Height = desiredRenderTargetSize.Height;
@@ -122,8 +122,9 @@ namespace MonoGame.Framework.WindowsPhone
         /// Creates your Game class initializing it to worth within a XAML application window.
         /// </summary>
         /// <param name="launchParameters">The command line arguments from launch.</param>
-        /// <param name="drawingSurface">The XAML drawing surface to which we render the scene and recieve input events.</param>
+        /// <param name="page">The XAML page containing the drawing surface to which we render the scene and recieve input events.</param>
         /// <returns></returns>
+        /// 
         static public T Create(string launchParameters, PhoneApplicationPage page)
         {
             if (launchParameters == null)
@@ -133,6 +134,17 @@ namespace MonoGame.Framework.WindowsPhone
             if (!(page.Content is DrawingSurfaceBackgroundGrid))
                 throw new NullReferenceException("The drawing surface could not be found!");
             DrawingSurfaceBackgroundGrid drawingSurface = (DrawingSurfaceBackgroundGrid)page.Content;
+
+            MediaElement mediaElement = null;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(page.Content); i++)
+            {
+                var child = VisualTreeHelper.GetChild(page.Content, i);
+                if (child is MediaElement)
+                    mediaElement = (MediaElement)child;
+            }
+            if (mediaElement == null)
+                throw new NullReferenceException("The media element could not be found! Add it to the GamePage.");
+            Microsoft.Xna.Framework.Media.MediaPlayer._mediaElement = mediaElement;
 
             WindowsPhoneGamePlatform.LaunchParameters = launchParameters;
             WindowsPhoneGameWindow.Width = drawingSurface.ActualWidth;

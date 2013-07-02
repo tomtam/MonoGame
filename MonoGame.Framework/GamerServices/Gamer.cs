@@ -39,15 +39,19 @@ purpose and non-infringement.
 #endregion License
 
 ﻿using System;
+using System.Runtime.Serialization;
 
 namespace Microsoft.Xna.Framework.GamerServices
 {
+    [DataContract]
     public abstract class Gamer
     {
         static SignedInGamerCollection _signedInGamers = new SignedInGamerCollection();
         string _gamer = "MonoGame";
         Object _tag;
         bool disposed;
+
+        LeaderboardWriter _leaderboardWriter;
 
         #region Methods
         public IAsyncResult BeginGetProfile( AsyncCallback callback, Object asyncState )
@@ -77,12 +81,14 @@ namespace Microsoft.Xna.Framework.GamerServices
 
         #endregion
         #region Properties
-		public string DisplayName 
+        [DataMember]
+        public string DisplayName 
         {
             get;
 			internal set;
         }
-		
+
+        [DataMember]
         public string Gamertag 
         {
             get
@@ -96,6 +102,7 @@ namespace Microsoft.Xna.Framework.GamerServices
 			}
         }
 
+        [DataMember]
         public bool IsDisposed
         {
             get
@@ -124,6 +131,14 @@ namespace Microsoft.Xna.Framework.GamerServices
             get
             {
                 return _signedInGamers;
+            }
+        }
+
+        public LeaderboardWriter LeaderboardWriter 
+        { 
+            get
+            {
+                return _leaderboardWriter;
             }
         }
         #endregion
