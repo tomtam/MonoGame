@@ -59,6 +59,9 @@
     <Reference Include="SharpDX.MediaFoundation">
       <HintPath>..\ThirdParty\Libs\SharpDX\Windows\SharpDX.MediaFoundation.dll</HintPath>
     </Reference>
+    <Reference Include="SharpDX.RawInput">
+      <HintPath>..\ThirdParty\Libs\SharpDX\Windows\SharpDX.RawInput.dll</HintPath>
+    </Reference>
     <Reference Include="SharpDX.XAudio2">
       <HintPath>..\ThirdParty\Libs\SharpDX\Windows\SharpDX.XAudio2.dll</HintPath>
     </Reference>
@@ -164,6 +167,7 @@
     <Compile Include="Input\GamePadDeadZone.cs" />
     <Compile Include="Input\Keyboard.cs" />
     <Compile Include="Input\MouseState.cs" />
+    <Compile Include="Input\Touch\TouchPanelState.cs" />
     <Compile Include="LaunchParameters.cs" />
     <Compile Include="Media\MediaPlayer.cs" />
     <Compile Include="Media\VideoSoundtrackType.cs" />
@@ -252,6 +256,7 @@
     <Compile Include="Graphics\Vertices\VertexPositionColor.cs" />
     <Compile Include="Graphics\Vertices\VertexPositionNormalTexture.cs" />
     <Compile Include="Graphics\Vertices\VertexPositionTexture.cs" />
+    <Compile Include="Media\MediaManagerState.cs" />
     <Compile Include="Media\MediaQueue.cs" />
     <Compile Include="Media\MediaSourceType.cs" />
     <Compile Include="Media\MediaState.cs" />
@@ -262,6 +267,7 @@
     <Compile Include="Storage\StorageDeviceHelper.cs" />
     <Compile Include="TextInputEventArgs.cs" />
     <Compile Include="Utilities\Hash.cs" />
+    <Compile Include="Utilities\ObjectFactoryWithReset.cs" />
     <Compile Include="Windows8\GamePad.cs" />
     <Compile Include="Windows8\SharpDXHelper.cs" />
     <Compile Include="Windows\GamerServices\Guide.cs" />
@@ -336,7 +342,6 @@
     <Compile Include="Graphics\States\BlendFunction.cs" />
     <Compile Include="Graphics\States\BlendState.cs" />
     <Compile Include="Graphics\ClearOptions.cs" />
-    <Compile Include="Graphics\CompilerOptions.cs" />
     <Compile Include="Graphics\DeviceType.cs" />
     <Compile Include="Graphics\GraphicsDeviceStatus.cs" />
     <Compile Include="Graphics\GraphicsProfile.cs" />
