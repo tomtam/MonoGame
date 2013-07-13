@@ -66,6 +66,8 @@ non-infringement.
 */
 #endregion License
 
+using Microsoft.Xna.Framework.Input;
+using Microsoft.Xna.Framework.Input.Touch;
 using System;
 using System.ComponentModel;
 
@@ -120,6 +122,9 @@ namespace Microsoft.Xna.Framework {
                 throw new NotImplementedException();
             }
         }
+
+        internal MouseState MouseState;
+        internal TouchPanelState TouchPanelState = new TouchPanelState();
 
 		#endregion Properties
 
@@ -202,6 +207,7 @@ namespace Microsoft.Xna.Framework {
         {
             var window = new MonoGame.Framework.WinFormsGameWindow((MonoGame.Framework.WinFormsGamePlatform)game.Platform);
             window.Initialize(width, height);
+
             return window;
         }
 #endif
