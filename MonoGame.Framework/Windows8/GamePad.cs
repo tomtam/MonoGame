@@ -220,7 +220,9 @@ namespace Microsoft.Xna.Framework.Input
             SharpDX.XInput.GamepadButtonFlags buttonFlags,
             SharpDX.XInput.GamepadButtonFlags desiredButton)
         {
-            return buttonFlags.HasFlag(desiredButton) ? 
+            // In this case we avoid the usage of Enum.HasFlag, as it would result in
+            // garbage from boxing.
+            return ((buttonFlags & desiredButton) == desiredButton) ?
                 Microsoft.Xna.Framework.Input.ButtonState.Pressed : Microsoft.Xna.Framework.Input.ButtonState.Released;
         }
 
