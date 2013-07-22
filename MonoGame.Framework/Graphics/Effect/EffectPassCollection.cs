@@ -47,14 +47,56 @@ namespace Microsoft.Xna.Framework.Graphics
             get { return _passes.Length; }
         }
 
+        public PassEnumerator GetEnumerator()
+        {
+            return new PassEnumerator(this);
+        }
+
         IEnumerator<EffectPass> IEnumerable<EffectPass>.GetEnumerator()
         {
-            return ((IEnumerable<EffectPass>)_passes).GetEnumerator();
+            return GetEnumerator();
         }
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
-            return _passes.GetEnumerator();
+            return GetEnumerator();
+        }
+
+        public struct PassEnumerator : IEnumerator<EffectPass>
+        {
+            private readonly EffectPass[] _items;
+            private int _index;
+
+            public PassEnumerator(EffectPassCollection collection)
+            {
+                _items = collection._passes;
+                _index = -1;
+            }
+
+            public EffectPass Current
+            {
+                get { return _items[_index]; }
+            }
+
+            public void Dispose()
+            {
+            }
+
+            object System.Collections.IEnumerator.Current
+            {
+                get { return Current; }
+            }
+
+            public bool MoveNext()
+            {
+                _index++;
+                return _index < _items.Length;
+            }
+
+            public void Reset()
+            {
+                _index = -1;
+            }
         }
     }
 }
