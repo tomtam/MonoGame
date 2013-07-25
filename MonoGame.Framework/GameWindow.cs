@@ -207,6 +207,8 @@ namespace Microsoft.Xna.Framework {
             window.Initialize(width, height);
             return window;
         }
+
+	    public abstract void SetClientSize(int width, int height);
 #endif
-    }
+	}
 }

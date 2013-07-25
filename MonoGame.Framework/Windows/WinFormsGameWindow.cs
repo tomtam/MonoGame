@@ -45,6 +45,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Input.Touch;
 using Microsoft.Xna.Framework.Windows;
@@ -287,6 +288,12 @@ namespace MonoGame.Framework
         {            
             _form.ClientSize = new Size(width, height);
             _form.Show();
+        }
+
+        public override void SetClientSize(int width, int height)
+        {
+            if (_form.ClientSize.Width != width || _form.ClientSize.Height != height)
+                _form.ClientSize = new Size(width, height);
         }
 
         private void OnClientSizeChanged(object sender, EventArgs eventArgs)
