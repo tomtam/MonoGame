@@ -360,7 +360,7 @@ namespace Microsoft.Xna.Framework.Graphics
                     return SharpDX.Direct3D11.Comparison.NotEqual;
 
                 default:
-                    throw new NotImplementedException("Invalid comparison!");
+                    throw new ArgumentException("Invalid comparison!");
             }
         }
 
@@ -393,7 +393,7 @@ namespace Microsoft.Xna.Framework.Graphics
                     return SharpDX.Direct3D11.StencilOperation.Zero;
 
                 default:
-                    throw new NotImplementedException("Invalid stencil operation!");
+                    throw new ArgumentException("Invalid stencil operation!");
             }
         }
 
