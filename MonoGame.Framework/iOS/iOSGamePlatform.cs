@@ -113,13 +113,13 @@ namespace Microsoft.Xna.Framework
             game.Services.AddService (typeof(UIWindow), _mainWindow);
 
             _viewController = new iOSGameViewController(this);
+            _viewController.InterfaceOrientationChanged += ViewController_InterfaceOrientationChanged;
+            
             game.Services.AddService (typeof(UIViewController), _viewController);
             Window = new iOSGameWindow (_viewController);
 
             _mainWindow.RootViewController = _viewController;
             _mainWindow.Add (_viewController.View);
-
-            _viewController.InterfaceOrientationChanged += ViewController_InterfaceOrientationChanged;
 
             Guide.Initialise(game);
         }
