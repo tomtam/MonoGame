@@ -25,6 +25,11 @@ namespace Microsoft.Xna.Framework.Content.Pipeline
         {
             var identity = new ContentIdentity(filename, GetType().Name);
             var importer = new AssimpImporter();
+
+            // Disable the FBX import from generating extra nodes with
+            // pivot points for transformations.
+            importer.SetConfig(new BooleanPropertyConfig("IMPORT_FBX_PRESERVE_PIVOTS", false));
+
             importer.AttachLogStream(new LogStream((msg, userData) => context.Logger.LogMessage(msg)));
             var scene = importer.ImportFile(filename,
                                             PostProcessSteps.FlipUVs | // So far appears necessary
@@ -41,18 +46,36 @@ namespace Microsoft.Xna.Framework.Content.Pipeline
                 Transform = ToXna(scene.RootNode.Transform)
             };
 
-            // TODO: Materials
             var materials = new List<MaterialContent>();
             foreach (var sceneMaterial in scene.Materials)
             {
-                var diffuse = sceneMaterial.GetTexture(TextureType.Diffuse, 0);
-
-                materials.Add(new BasicMaterialContent()
+                var mat = new BasicMaterialContent()
                 {
                     Name = sceneMaterial.Name,
                     Identity = identity,
-                    Texture = new ExternalReference<TextureContent>(diffuse.FilePath, identity)
-                });
+                };
+
+                if (sceneMaterial.HasColorDiffuse)
+                    mat.DiffuseColor = ToXna(sceneMaterial.ColorDiffuse);
+
+                if (sceneMaterial.HasColorEmissive)
+                    mat.EmissiveColor = ToXna(sceneMaterial.ColorEmissive);
+
+                if (sceneMaterial.HasColorSpecular)
+                    mat.SpecularColor = ToXna(sceneMaterial.ColorSpecular);
+
+                if (sceneMaterial.HasOpacity)
+                    mat.Alpha = sceneMaterial.Opacity;
+
+                var diffuse = sceneMaterial.GetTexture(TextureType.Diffuse, 0);
+                if (!string.IsNullOrEmpty(diffuse.FilePath))
+                    mat.Texture = new ExternalReference<TextureContent>(diffuse.FilePath, identity);
+
+                var normals = sceneMaterial.GetTexture(TextureType.Normals, 0);
+                if (!string.IsNullOrEmpty(normals.FilePath))
+                    mat.Textures.Add("NormalMap", new ExternalReference<TextureContent>(normals.FilePath, identity));
+               
+                materials.Add(mat);
             }
 
             // Meshes
@@ -72,10 +95,12 @@ namespace Microsoft.Xna.Framework.Content.Pipeline
                     mesh.Positions.Add(new Vector3(vert.X, vert.Y, vert.Z));
 
                 var geom = new GeometryContent
-                    {
-                        Name = string.Empty,
-                        //Material = materials[sceneMesh.MaterialIndex]
-                    };
+                {
+                    Name = string.Empty,                       
+                };
+
+                if (materials.Count > 0 && sceneMesh.MaterialIndex > -1)
+                    geom.Material = materials[sceneMesh.MaterialIndex];
 
                 // Geometry vertices reference 1:1 with the MeshContent parent,
                 // no indirection is necessary.
@@ -101,29 +126,44 @@ namespace Microsoft.Xna.Framework.Content.Pipeline
             var hierarchyNodes = scene.RootNode.Children.SelectDeep(n => n.Children).ToList();
             foreach (var node in hierarchyNodes)
             {
-                var bone = new BoneContent
+                // Copy the bone's name to the MeshContent - this appears to be
+                // the way it comes out of XNA's FBXImporter.
+                if (node.MeshIndices != null && node.MeshIndices.Length > 0)
+                {
+                    foreach (var meshIndex in node.MeshIndices)
                     {
-                        Name = node.Name,
-                        Transform = Matrix.Transpose(ToXna(node.Transform))
-                    };
+                        var mesh = meshes[scene.Meshes[meshIndex]];
+                        mesh.Name = node.Name;
+                    }
 
+                    continue;
+                }
+
+                var bone = new BoneContent
+                {
+                    Name = node.Name,
+                    Transform = Matrix.Transpose(ToXna(node.Transform))
+                };
+
+                // Add the node.
                 if (node.Parent == scene.RootNode)
                     rootNode.Children.Add(bone);
                 else
                 {
-                    var parent = bones[node.Parent];
-                    parent.Children.Add(bone);
+                    BoneContent parent;
+                    if (bones.TryGetValue(node.Parent, out parent))
+                        parent.Children.Add(bone);
                 }
-
-                // Copy the bone's name to the MeshContent - this appears to be
-                // the way it comes out of XNA's FBXImporter.
-                foreach (var meshIndex in node.MeshIndices)
-                    meshes[scene.Meshes[meshIndex]].Name = node.Name;
 
                 bones.Add(node, bone);
             }
 
             return rootNode;
+        }
+
+        public static Color ToXna(Color4D color)
+        {
+            return new Color(color.R, color.G, color.B, color.A);
         }
 
         public static Matrix ToXna(Matrix4x4 matrix)
