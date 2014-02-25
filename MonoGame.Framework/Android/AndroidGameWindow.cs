@@ -92,6 +92,7 @@ namespace Microsoft.Xna.Framework
             _game = game;
             TouchPanelState = new TouchPanelState(this);
             Initialize();
+
         }		
 						
         private void Initialize()
