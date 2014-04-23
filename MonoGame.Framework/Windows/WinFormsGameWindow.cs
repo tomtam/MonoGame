@@ -45,6 +45,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Input.Touch;
 using Microsoft.Xna.Framework.Windows;
@@ -270,7 +271,15 @@ namespace MonoGame.Framework
         {
             if (KeyState == null)
                 return;
-
+                        
+            // Certain special keys, such as pause and arrows, have their
+            // press/hold/release event sequence wrapped with LButton|OemClear 
+            // press/release events.
+            // The MakeCode for such events can be confused with that of other keys
+            // if we do not return here.
+            if ((int)args.Key == 255)
+                return;
+            
             XnaKey xnaKey;
 
             switch (args.MakeCode)
@@ -308,9 +317,15 @@ namespace MonoGame.Framework
         }
 
         internal void Initialize(int width, int height)
-        {            
+        {
             _form.ClientSize = new Size(width, height);
             _form.Show();
+        }
+
+        public override void SetClientSize(int width, int height)
+        {
+            if (_form.ClientSize.Width != width || _form.ClientSize.Height != height)
+                _form.ClientSize = new Size(width, height);
         }
 
         private void OnClientSizeChanged(object sender, EventArgs eventArgs)
