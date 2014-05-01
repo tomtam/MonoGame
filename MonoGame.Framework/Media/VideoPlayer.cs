@@ -193,8 +193,7 @@ namespace Microsoft.Xna.Framework.Media
         /// </summary>
         public void Dispose()
         {
-            // Note Currently a no-p,
-            // as no implementations have any disposable resources yet.
+            PlatformDispose();
         }
 
         #endregion

@@ -9,14 +9,16 @@ namespace Microsoft.Xna.Framework.Media
 {
     internal class VideoSampleGrabber : SharpDX.CallbackBase, SampleGrabberSinkCallback
     {
+        internal bool Dirty { get; set; }
         internal byte[] TextureData { get; private set; }
-
+        
         public void OnProcessSample(Guid guidMajorMediaType, int dwSampleFlags, long llSampleTime, long llSampleDuration, IntPtr sampleBufferRef, int dwSampleSize)
         {
             if (TextureData == null || TextureData.Length != dwSampleSize)
                 TextureData = new byte[dwSampleSize];
 
             Marshal.Copy(sampleBufferRef, TextureData, 0, dwSampleSize);
+            Dirty = true;
         }
 
         public void OnSetPresentationClock(PresentationClock presentationClockRef)

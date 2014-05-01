@@ -16,6 +16,11 @@ namespace Microsoft.Xna.Framework.Media
 
 		#region Public API
 
+        public static Video FromUri(Uri uri)
+        {
+            return PlatformFromUri(uri);
+        }
+
 		/// <summary>
 		/// I actually think this is a file PATH...
 		/// </summary>
@@ -84,7 +89,7 @@ namespace Microsoft.Xna.Framework.Media
         {
             if (!_disposed)
             {
-                //PlatformDispose(disposing);
+                PlatformDispose(disposing);
                 _disposed = true;
             }
         }
