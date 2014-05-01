@@ -25,11 +25,15 @@ namespace MonoGame.Tools.Pipeline
 
         bool AskOpenProject(out string projectFilePath);
 
-        void ShowError(string title, string message);
+        void ShowError(string title, string message);        
 
         void SetTreeRoot(IProjectItem item);
 
         void AddTreeItem(IProjectItem item);
+
+        void RemoveTreeItem(ContentItem contentItem);
+
+        void SelectTreeItem(IProjectItem item);
 
         void ShowProperties(IProjectItem item);
 
@@ -38,5 +42,7 @@ namespace MonoGame.Tools.Pipeline
         void OutputAppend(string text);
 
         void OutputClear();
+
+        bool ChooseContentFile(string initialDirectory, out string file);
     }
 }

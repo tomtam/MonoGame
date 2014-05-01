@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using MGCB;
@@ -25,45 +26,48 @@ namespace MonoGame.Tools.Pipeline
     {
         private readonly List<ContentItem> _content = new List<ContentItem>();
 
+        [Browsable(false)]
         public ReadOnlyCollection<ContentItem> ContentItems { get; private set; }
 
+        [Browsable(false)]
         public string FilePath { get; set; }
 
         [CommandLineParameter(
             Name = "outputDir",
             ValueName = "directoryPath",
             Description = "The directory where all content is written.")]
-        public string OutputDir = string.Empty;
+        public string OutputDir { get; set; }
 
         [CommandLineParameter(
             Name = "intermediateDir",
             ValueName = "directoryPath",
             Description = "The directory where all intermediate files are written.")]
-        public string IntermediateDir = string.Empty;
+        public string IntermediateDir { get; set; }
 
+        //[TypeConverter(typeof(AssemblyReferenceListConverter))]        
         [CommandLineParameter(
             Name = "reference",
             ValueName = "assemblyNameOrFile",
             Description = "Adds an assembly reference for resolving content importers, processors, and writers.")]
-        public readonly List<string> References = new List<string>();
+        public BindingList<string> References { get; private set; }
 
         [CommandLineParameter(
             Name = "platform",
             ValueName = "targetPlatform",
             Description = "Set the target platform for this build.  Defaults to Windows.")]
-        public TargetPlatform Platform;
+        public TargetPlatform Platform { get; set; }
 
         [CommandLineParameter(
             Name = "profile",
             ValueName = "graphicsProfile",
             Description = "Set the target graphics profile for this build.  Defaults to HiDef.")]
-        public GraphicsProfile Profile;
+        public GraphicsProfile Profile { get; set; }
 
         [CommandLineParameter(
             Name = "config",
             ValueName = "string",
             Description = "The optional build config string from the build system.")]
-        public string Config = string.Empty;
+        public string Config { get; set; }
 
         [CommandLineParameter(
             Name = "importer",
@@ -73,6 +77,7 @@ namespace MonoGame.Tools.Pipeline
 
         private string _processor;
 
+        [Browsable(false)]
         [CommandLineParameter(
             Name = "processor",
             ValueName = "className",
@@ -113,13 +118,13 @@ namespace MonoGame.Tools.Pipeline
         public void OnBuild(string sourceFile)
         {
             // Make sure the source file is relative to the project.
-            var projectDir = System.IO.Path.GetDirectoryName(FilePath);
+            var projectDir = Location + "\\";
             sourceFile = PathHelper.GetRelativePath(projectDir, sourceFile);
 
             // Remove duplicates... keep this new one.
             var previous = _content.FindIndex(e => string.Equals(e.SourceFile, sourceFile, StringComparison.InvariantCultureIgnoreCase));
             if (previous != -1)
-                _content.RemoveAt(previous);
+                _content.RemoveAt(previous);          
 
             // Create the item for processing later.
             var item = new ContentItem
@@ -138,11 +143,18 @@ namespace MonoGame.Tools.Pipeline
                 item.ProcessorParams.Add(pair.Key, pair.Value);
         }
 
+        public void RemoveItem(ContentItem item)
+        {
+            _content.Remove(item);
+        }
+
+        [Browsable(false)]
         public bool IsDirty { get; set; }
 
         public PipelineProject()
         {
             ContentItems = new ReadOnlyCollection<ContentItem>(_content);
+            References = new BindingList<string>();
         }
 
         public void Attach(IProjectObserver observer)
@@ -161,7 +173,7 @@ namespace MonoGame.Tools.Pipeline
             Profile = GraphicsProfile.HiDef;
             Processor = null;
             FilePath = null;
-            IsDirty = false;
+            IsDirty = false;            
         }
 
         public void OpenProject(string projectFilePath)
@@ -183,6 +195,11 @@ namespace MonoGame.Tools.Pipeline
 
             // We're not dirty as we just loaded.
             IsDirty = false;
+
+            // Clear variables which store temporary data concerning the last item.
+            Importer = null;
+            Processor = null;
+            _processorParams.Clear();
         }
 
         public void SaveProject()
@@ -222,9 +239,11 @@ namespace MonoGame.Tools.Pipeline
                 line = string.Format(commentFormat, "Content");
                 io.WriteLine(line);
 
+                //string prevProcessor = null;
                 foreach (var i in ContentItems)
                 {
-                    if (!i.Importer.FileExtensions.Contains(System.IO.Path.GetExtension(i.SourceFile)))
+                    // JCF: Logic for not writting out default values / redundant values is disabled, always write out everything.
+                    //if (!i.Importer.FileExtensions.Contains(System.IO.Path.GetExtension(i.SourceFile)))
                     {
                         line = string.Format(lineFormat, "importer", i.ImporterName);
                         io.WriteLine(line);   
@@ -245,11 +264,16 @@ namespace MonoGame.Tools.Pipeline
 
                     // If there were any non-default-value processor parameters
                     // or, if the processor itself is not the default processor for this content's importer
+                    // or, the processor for this item is different than the previous item's
                     // then we write out the processor command line and any (non default value) processor parameters.
-                    if (parameterLines.Count > 0 || !i.Processor.TypeName.Equals(i.Importer.DefaultProcessor))
+                    // JCF: Logic for not writting out default values / redundant values is disabled, always write out everything.
+                    //if (parameterLines.Count > 0 || !i.Processor.TypeName.Equals(i.Importer.DefaultProcessor) || (prevProcessor != null && prevProcessor != i.Processor.TypeName)
                     {
                         line = string.Format(lineFormat, "processor", i.ProcessorName);
                         io.WriteLine(line);
+
+                        // Store the last processor we emitted, so we can test if it does not match subsequent items.
+                        //prevProcessor = i.Processor.TypeName;
 
                         foreach (var ln in parameterLines)
                             io.WriteLine(ln);
@@ -265,6 +289,10 @@ namespace MonoGame.Tools.Pipeline
         public void CloseProject()
         {
             _content.Clear();
+            FilePath = null;
+            OutputDir = null;
+            IntermediateDir = null;
+            Config = null;
         }
 
 #region IPipelineItem
@@ -273,15 +301,26 @@ namespace MonoGame.Tools.Pipeline
         { 
             get
             {
+                if (string.IsNullOrEmpty(FilePath))
+                    return "";
+
                 return System.IO.Path.GetFileNameWithoutExtension(FilePath);
             }
         }
 
         public string Location
         {
-            get { return string.Empty; }
+            get
+            {
+                if (string.IsNullOrEmpty(FilePath))
+                    return "";
+
+                var idx = FilePath.LastIndexOfAny(new char[] {Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar}, FilePath.Length - 1);
+                return FilePath.Remove(idx);                
+            }
         }
 
+        [Browsable(false)]
         public string Icon { get; set; }
 
 #endregion

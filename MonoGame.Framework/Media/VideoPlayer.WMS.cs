@@ -3,44 +3,100 @@ using SharpDX;
 using SharpDX.MediaFoundation;
 using SharpDX.Win32;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace Microsoft.Xna.Framework.Media
-{
+{    
     public sealed partial class VideoPlayer : IDisposable
     {
-        private static MediaSession _session;
-        private static SimpleAudioVolume _volumeController;
-        private static PresentationClock _clock;
+        #region Supporting Types
 
-        // HACK: Need SharpDX to fix this.
-        private static readonly Guid MRPolicyVolumeService = Guid.Parse("1abaa2ac-9d3b-47c6-ab48-c59506de784d");
-        private static readonly Guid SimpleAudioVolumeGuid = Guid.Parse("089EDF13-CF71-4338-8D13-9E569DBDC319");
+        private class TextureBuffer : IDisposable
+        {
+            private readonly Texture2D[] _frames;
+            private int _index;
 
-        private static Callback _callback;
+            public readonly int Width;
+            public readonly int Height;
+
+            public TextureBuffer(GraphicsDevice device, int width, int height)
+            {
+                _frames = new Texture2D[2];
+                for (var i = 0; i < _frames.Length; i++)
+                {
+                    var tex = new Texture2D(device, width, height, false, SurfaceFormat.Bgr32);
+                    _frames[i] = tex;
+                }
+
+                Width = width;
+                Height = height;
+            }
+
+            public Texture2D Get()
+            {
+                return _frames[_index];
+            }
+
+            public void Set(byte[] data)
+            {
+                _index = (_index + 1) % 2;
+                _frames[_index].SetData(data);
+            }
+
+            public void Init(byte[] data)
+            {
+                for (var i = 0; i < _frames.Length; i++)
+                    _frames[i].SetData(data);
+            }
+
+            public void Dispose()
+            {
+                foreach (var tex in _frames)
+                    tex.Dispose();
+            }
+        }
 
         private class Callback : IAsyncCallback
         {
+            private readonly VideoPlayer _player;
+
+            public AsyncCallbackFlags Flags { get; private set; }
+            public WorkQueueId WorkQueueId { get; private set; }
+
+            public Callback(VideoPlayer player)
+            {
+                _player = player;
+            }
+
             public void Dispose()
             {
             }
 
             public IDisposable Shadow { get; set; }
+
             public void Invoke(AsyncResult asyncResultRef)
             {
-                var ev = _session.EndGetEvent(asyncResultRef);
+                var ev = _player._session.EndGetEvent(asyncResultRef);
+                if (ev.TypeInfo == MediaEventTypes.SessionEnded)
+                {
+                    _player._state = MediaState.Stopped;
+                }
 
-                // Trigger an "on Video Ended" event here if needed
-
-                _session.BeginGetEvent(this, null);
+                _player._session.BeginGetEvent(this, null);
             }
-
-            public AsyncCallbackFlags Flags { get; private set; }
-            public WorkQueueId WorkQueueId { get; private set; }
         }
 
+        #endregion
+
+        // HACK: Need SharpDX to fix this.
+        private static readonly Guid MRPolicyVolumeService = Guid.Parse("1abaa2ac-9d3b-47c6-ab48-c59506de784d");
+        private static readonly Guid SimpleAudioVolumeGuid = Guid.Parse("089EDF13-CF71-4338-8D13-9E569DBDC319");  
+
+        private MediaSession _session;
+        private SimpleAudioVolume _volumeController;
+        private PresentationClock _clock;
+        private Callback _callback;
+        private TextureBuffer _textureBuffer;
+       
         private void PlatformInitialize()
         {
             MediaManagerState.CheckStartup();
@@ -51,18 +107,29 @@ namespace Microsoft.Xna.Framework.Media
         {
             var sampleGrabber = _currentVideo.SampleGrabber;
 
-            var texData = sampleGrabber.TextureData;
+            if (_textureBuffer != null && (_textureBuffer.Width != _currentVideo.Width || _textureBuffer.Height != _currentVideo.Height))
+            {
+                _textureBuffer.Dispose();
+                _textureBuffer = null;
+            }
 
-            if (texData == null)
-                return null;
+            if (_textureBuffer == null)
+            {
+                _textureBuffer = new TextureBuffer(Game.Instance.GraphicsDevice, _currentVideo.Width, _currentVideo.Height);
 
-            // TODO: This could likely be optimized if we held on to the SharpDX Surface/Texture data,
-            // and set it on an XNA one rather than constructing a new one every time this is called.
-            var retTex = new Texture2D(Game.Instance.GraphicsDevice, _currentVideo.Width, _currentVideo.Height, false, SurfaceFormat.Bgr32);
-            
-            retTex.SetData(texData);
-            
-            return retTex;
+                if (sampleGrabber.TextureData != null)
+                    _textureBuffer.Init(sampleGrabber.TextureData);
+            }
+
+            var texture = _textureBuffer.Get();
+            if (sampleGrabber.Dirty)
+            {
+                if (sampleGrabber.TextureData != null)
+                    _textureBuffer.Set(sampleGrabber.TextureData);
+                sampleGrabber.Dirty = false;
+            }
+
+            return texture;
         }
 
         private void PlatformPause()
@@ -86,28 +153,26 @@ namespace Microsoft.Xna.Framework.Media
             // Get the volume interface.
             IntPtr volumeObj;
 
-
             try
             {
                 MediaFactory.GetService(_session, MRPolicyVolumeService, SimpleAudioVolumeGuid, out volumeObj);
+
+                _volumeController = CppObject.FromPointer<SimpleAudioVolume>(volumeObj);
+                _volumeController.Mute = IsMuted;
+                _volumeController.MasterVolume = _volume;
             }
             catch
             {
-                MediaFactory.GetService(_session, MRPolicyVolumeService, SimpleAudioVolumeGuid, out volumeObj);
+                // Do we support videos without audio tracks?
             }
-
-
-            _volumeController = CppObject.FromPointer<SimpleAudioVolume>(volumeObj);
-            _volumeController.Mute = IsMuted;
-            _volumeController.MasterVolume = _volume;
 
             // Get the clock.
             _clock = _session.Clock.QueryInterface<PresentationClock>();
 
-            //create the callback if it hasn't been created yet
+            // create the callback if it hasn't been created yet
             if (_callback == null)
             {
-                _callback = new Callback();
+                _callback = new Callback(this);
                 _session.BeginGetEvent(_callback, null);
             }
 
@@ -118,7 +183,8 @@ namespace Microsoft.Xna.Framework.Media
 
         private void PlatformResume()
         {
-            _session.Start(null, null);
+            var varStart = new Variant();
+            _session.Start(null, varStart);
         }
 
         private void PlatformStop()
@@ -137,6 +203,15 @@ namespace Microsoft.Xna.Framework.Media
         private TimeSpan PlatformGetPlayPosition()
         {
             return TimeSpan.Zero;
+        }
+
+        private void PlatformDispose()
+        {
+            if (_textureBuffer != null)
+            {
+                _textureBuffer.Dispose();
+                _textureBuffer = null;
+            }
         }
     }
 }

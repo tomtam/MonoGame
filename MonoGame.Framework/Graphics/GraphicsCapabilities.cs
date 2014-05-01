@@ -101,6 +101,25 @@ namespace Microsoft.Xna.Framework.Graphics
         /// </summary>
         internal static bool SupportsAtitc { get; private set; }
 
+#if OPENGL
+        /// <summary>
+        /// True, if GL_ARB_framebuffer_object is supported; false otherwise.
+        /// </summary>
+        internal static bool SupportsFramebufferObjectARB { get; private set; }
+
+        /// <summary>
+        /// True, if GL_EXT_framebuffer_object is supported; false otherwise.
+        /// </summary>
+        internal static bool SupportsFramebufferObjectEXT { get; private set; }
+
+        /// <summary>
+        /// Gets the max texture anisotropy. This value typically lies
+        /// between 0 and 16, where 0 means anisotropic filtering is not
+        /// supported.
+        /// </summary>
+        internal static int MaxTextureAnisotropy { get; private set; }
+#endif
+
         internal static void Initialize(GraphicsDevice device)
         {
 			SupportsNonPowerOfTwo = GetNonPowerOfTwo(device);
@@ -131,6 +150,32 @@ namespace Microsoft.Xna.Framework.Graphics
             SupportsEtc1 = device._extensions.Contains("GL_OES_compressed_ETC1_RGB8_texture");
             SupportsAtitc = device._extensions.Contains("GL_ATI_texture_compression_atitc") ||
                 device._extensions.Contains("GL_AMD_compressed_ATC_texture");
+#endif
+
+            // OpenGL framebuffer objects
+#if OPENGL
+#if GLES
+            SupportsFramebufferObjectARB = true; // always supported on GLES 2.0+
+            SupportsFramebufferObjectEXT = false;
+#else
+            SupportsFramebufferObjectARB = device._extensions.Contains("GL_ARB_framebuffer_object");
+            SupportsFramebufferObjectEXT = device._extensions.Contains("GL_EXT_framebuffer_object");
+#endif
+#endif
+
+            // Anisotropic filtering
+#if OPENGL
+            int anisotropy = 0;
+#if GLES
+            if (GraphicsCapabilities.SupportsTextureFilterAnisotropic)
+            {
+                GL.GetInteger(All.MaxTextureMaxAnisotropyExt, ref anisotropy);
+            }
+#else
+            GL.GetInteger((GetPName)All.MaxTextureMaxAnisotropyExt, out anisotropy);
+#endif
+            GraphicsExtensions.CheckGLError();
+            MaxTextureAnisotropy = anisotropy;
 #endif
         }
 

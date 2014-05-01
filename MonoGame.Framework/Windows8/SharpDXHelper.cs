@@ -1,10 +1,19 @@
 ﻿
+using System;
+using SharpDX.MediaFoundation;
+
 namespace Microsoft.Xna.Framework
 {
     using Microsoft.Xna.Framework.Graphics;
 
     static internal class SharpDXHelper
     {
+        static public void GetWords(long dword, out int upper, out int lower)
+        {
+            upper = (int)(dword >> 32);
+            lower = (int)(dword & 0x0000FFFF);
+        }
+
         static public SharpDX.DXGI.SwapEffect ToSwapEffect(PresentInterval presentInterval)
         {
             SharpDX.DXGI.SwapEffect effect;
@@ -122,7 +131,7 @@ namespace Microsoft.Xna.Framework
         static public SharpDX.Vector4 ToVector4(this Vector4 vec)
         {
             return new SharpDX.Vector4(vec.X, vec.Y, vec.Z, vec.W);
-        }
+        }        
 
         static public SharpDX.X3DAudio.Emitter ToEmitter(this Audio.AudioEmitter emitter)
         {           
@@ -195,6 +204,13 @@ namespace Microsoft.Xna.Framework
                 OrientFront = new SharpDX.Vector3(forward.X, forward.Y, forward.Z),
                 OrientTop = new SharpDX.Vector3(up.X, up.Y, up.Z),                
             };
+        }
+
+        public static Guid FourCCToGuid(string letters)
+        {
+            var cc = new SharpDX.Multimedia.FourCC(letters);
+            var str = ((int)cc).ToString("X") + "-0000-0010-8000-00AA00389B71";            
+            return new Guid(str);
         }
     }
 }

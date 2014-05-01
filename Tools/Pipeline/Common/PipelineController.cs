@@ -5,6 +5,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace MonoGame.Tools.Pipeline
@@ -15,6 +16,11 @@ namespace MonoGame.Tools.Pipeline
         private readonly PipelineProject _project;
 
         private Task _buildProcess;
+
+        public PipelineProject Project
+        {
+            get { return _project; }
+        }
 
         public PipelineController(IView view, PipelineProject project)
         {
@@ -33,6 +39,13 @@ namespace MonoGame.Tools.Pipeline
 
             // Clear the existing model data.
             _project.NewProject();
+            PipelineTypes.Load(_project);
+
+            string projectFilePath = Environment.CurrentDirectory;
+            if (!_view.AskSaveName(ref projectFilePath ))
+                return;
+
+            _project.FilePath = projectFilePath;            
 
             // Setup a default project.
             UpdateTree();
@@ -58,8 +71,8 @@ namespace MonoGame.Tools.Pipeline
 
                 foreach (var i in _project.ContentItems)
                 {
-                    i.ResolveTypes();
                     i.View = _view;
+                    i.ResolveTypes();                    
                 }
             }
 #if SHIPPING
@@ -75,6 +88,11 @@ namespace MonoGame.Tools.Pipeline
 
         public void CloseProject()
         {
+            // Make sure we give the user a chance to
+            // save the project if they need too.
+            if (!AskSaveProject())
+                return;
+
             _project.CloseProject();
             UpdateTree();
         }
@@ -185,9 +203,15 @@ namespace MonoGame.Tools.Pipeline
 
         private void UpdateTree()
         {
-            _view.SetTreeRoot(_project);
-            foreach (var item in _project.ContentItems)
-                _view.AddTreeItem(item);
+            if (string.IsNullOrEmpty(_project.FilePath))
+                _view.SetTreeRoot(null);
+            else
+            {
+                _view.SetTreeRoot(_project);
+
+                foreach (var item in _project.ContentItems)
+                    _view.AddTreeItem(item);
+            }
         }
 
         public bool Exit()
@@ -195,6 +219,38 @@ namespace MonoGame.Tools.Pipeline
             // Make sure we give the user a chance to
             // save the project if they need too.
             return AskSaveProject();
+        }
+
+        public void Include(string initialDirectory)
+        {            
+            var projectRoot = _project.Location;
+            var path = projectRoot + "\\" + initialDirectory;
+
+            string file;
+            if (_view.ChooseContentFile(initialDirectory, out file))
+            {
+                _project.OnBuild(file);
+                var item = _project.ContentItems.Last();
+                item.View = _view;
+                item.ResolveTypes();
+                _view.AddTreeItem(item);
+                _view.SelectTreeItem(item);
+
+                _project.IsDirty = true;
+            }                      
+        }
+
+        public void Exclude(ContentItem item)
+        {
+            _project.RemoveItem(item);
+            _view.RemoveTreeItem(item);
+
+            _project.IsDirty = true;
+        }
+
+        public void ProjectModified()
+        {
+            _project.IsDirty = true;
         }
     }
 }

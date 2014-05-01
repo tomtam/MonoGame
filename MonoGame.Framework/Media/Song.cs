@@ -4,7 +4,6 @@
 
 using System;
 using System.IO;
-using Microsoft.Xna.Framework.Audio;
 
 namespace Microsoft.Xna.Framework.Media
 {
@@ -15,8 +14,10 @@ namespace Microsoft.Xna.Framework.Media
         private TimeSpan _duration = TimeSpan.Zero;
         bool disposed;
 
+#if ANDROID || OPENAL || PSM || WEB
         internal delegate void FinishedPlayingHandler(object sender, EventArgs args);
         event FinishedPlayingHandler DonePlaying;
+#endif
 
         internal Song(string fileName, int durationMS)
             : this(fileName)

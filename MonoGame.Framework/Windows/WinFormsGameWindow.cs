@@ -174,6 +174,7 @@ namespace MonoGame.Framework
             var assembly = Assembly.GetEntryAssembly();
             if (assembly != null)
                 _form.Icon = Icon.ExtractAssociatedIcon(assembly.Location);
+            Title = Utilities.AssemblyHelper.GetDefaultWindowTitle();
 
             _form.MaximizeBox = false;
             _form.FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -305,9 +306,9 @@ namespace MonoGame.Framework
                     break;
             }
 
-            if (args.State == SharpDX.RawInput.KeyState.KeyDown && !KeyState.Contains(xnaKey))
+            if ((args.State == SharpDX.RawInput.KeyState.KeyDown || args.State == SharpDX.RawInput.KeyState.SystemKeyDown) && !KeyState.Contains(xnaKey))
                 KeyState.Add(xnaKey);
-            else if (args.State == SharpDX.RawInput.KeyState.KeyUp)
+            else if (args.State == SharpDX.RawInput.KeyState.KeyUp || args.State == SharpDX.RawInput.KeyState.SystemKeyUp)
                 KeyState.Remove(xnaKey);
         }
 

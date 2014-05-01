@@ -29,7 +29,7 @@ namespace Microsoft.Xna.Framework.Content
         {
             string path = input.ReadObject<string>();
 
-            path = Path.Combine(input.ContentManager.RootDirectory, path);
+            path = Path.Combine(input.ContentManager.RootDirectory, Path.GetDirectoryName(input.AssetName) + "\\" + path);
             path = TitleContainer.GetFilename(path);
 
             var durationMS = input.ReadObject<int>();
