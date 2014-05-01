@@ -3,19 +3,6 @@
 // file 'LICENSE.txt', which is part of this source code package.
 
 using System;
-using Microsoft.Xna.Framework.Audio;
-using System.Linq;
-
-#if IOS
-using MonoTouch.AudioToolbox;
-using MonoTouch.AVFoundation;
-using MonoTouch.Foundation;
-using MonoTouch.MediaPlayer;
-#endif
-
-#if WINRT
-using Windows.UI.Core;
-#endif
 
 namespace Microsoft.Xna.Framework.Media
 {
@@ -110,14 +97,14 @@ namespace Microsoft.Xna.Framework.Media
         public static float Volume
         {
             get { return _volume; }
-			set 
-			{       
-				_volume = value;
+            set
+            {
+                _volume = MathHelper.Clamp(value, 0, 1);
 
                 PlatformSetVolume();
-			}
+            }
         }
-		
+
 		#endregion
 		
         public static void Pause()
@@ -228,6 +215,17 @@ namespace Microsoft.Xna.Framework.Media
 		
 		private static void NextSong(int direction)
 		{
+            if (IsRepeating && _queue.ActiveSongIndex >= _queue.Count - 1)
+            {
+                _queue.ActiveSongIndex = 0;
+                
+                // Setting direction to 0 will force the first song
+                // in the queue to be played.
+                // if we're on "shuffle", then it'll pick a random one
+                // anyway, regardless of the "direction".
+                direction = 0;
+            }
+
 			var nextSong = _queue.GetNextSong(direction, IsShuffled);
 
             if (nextSong == null)

@@ -76,6 +76,9 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input.Touch;
 using Microsoft.Xna.Framework.Input;
 
+using OpenTK;
+using OpenTK.Graphics;
+
 namespace Microsoft.Xna.Framework
 {
     class OpenTKGamePlatform : GamePlatform
@@ -84,28 +87,32 @@ namespace Microsoft.Xna.Framework
 		private OpenALSoundController soundControllerInstance = null;
         // stored the current screen state, so we can check if it has changed.
         private bool isCurrentlyFullScreen = false;
-        
+        private Toolkit toolkit;
         
         public override bool VSyncEnabled
         {
             get
             {
-                return _view.Window.VSync == OpenTK.VSyncMode.On ? true : false;
+                var context = GraphicsContext.CurrentContext;
+                return context != null && context.SwapInterval != 0;
             }
-            
             set
             {
-                _view.Window.VSync = value ? OpenTK.VSyncMode.On : OpenTK.VSyncMode.Off;
+                var context = GraphicsContext.CurrentContext;
+                if (context != null)
+                {
+                    context.SwapInterval = value ? 1 : 0;
+                }
             }
         }
         
 		public OpenTKGamePlatform(Game game)
             : base(game)
         {
-            _view = new OpenTKGameWindow();
-            _view.Game = game;
+            toolkit = Toolkit.Init();
+            _view = new OpenTKGameWindow(game);
             this.Window = _view;
-			
+
 			// Setup our OpenALSoundController to handle our SoundBuffer pools
             try
             {
@@ -135,14 +142,25 @@ namespace Microsoft.Xna.Framework
 #if WINDOWS
         protected override void OnIsMouseVisibleChanged()
         {
-            _view.MouseVisibleToggled();
+            _view.SetMouseVisible(IsMouseVisible);
+        }
+#endif
+
+#if LINUX
+        protected override void OnIsMouseVisibleChanged()
+        {
+            MouseState oldState = Mouse.GetState();
+            _view.Window.CursorVisible = IsMouseVisible;
+            // IsMouseVisible changes the location of the cursor on Linux and we have to manually set it back to the correct position
+            System.Drawing.Point mousePos = _view.Window.PointToScreen(new System.Drawing.Point(oldState.X, oldState.Y));
+            OpenTK.Input.Mouse.SetPosition(mousePos.X, mousePos.Y);
         }
 #endif
 
         public override void RunLoop()
         {
-            ResetWindowBounds(false);
-            _view.Window.Run(0);
+            ResetWindowBounds();
+            _view.Run();
         }
 
         public override void StartRunLoop()
@@ -152,15 +170,21 @@ namespace Microsoft.Xna.Framework
         
         public override void Exit()
         {
-            if (!_view.Window.IsExiting)
+            if (_view.Window.Exists)
             {
                 Net.NetworkSession.Exit();
-                _view.Window.Exit();
+                _view.Window.Close();
             }
 #if LINUX
             Tao.Sdl.SdlMixer.Mix_CloseAudio();
 #endif
             OpenTK.DisplayDevice.Default.RestoreResolution();
+        }
+
+        public override void BeforeInitialize()
+        {
+            _view.Window.Visible = true;
+            base.BeforeInitialize();
         }
 
         public override bool BeforeUpdate(GameTime gameTime)
@@ -180,15 +204,15 @@ namespace Microsoft.Xna.Framework
 
         public override void EnterFullScreen()
         {
-            ResetWindowBounds(false);
+            ResetWindowBounds();
         }
 
         public override void ExitFullScreen()
         {
-            ResetWindowBounds(false);
+            ResetWindowBounds();
         }
 
-        internal void ResetWindowBounds(bool toggleFullScreen)
+        internal void ResetWindowBounds()
         {
             Rectangle bounds;
 
@@ -265,16 +289,6 @@ namespace Microsoft.Xna.Framework
         {
             
         }
-#if LINUX
-        protected override void OnIsMouseVisibleChanged()
-        {
-            MouseState oldState = Mouse.GetState();
-            _view.Window.CursorVisible = IsMouseVisible;
-            // IsMouseVisible changes the location of the cursor on Linux and we have to manually set it back to the correct position
-            System.Drawing.Point mousePos = _view.Window.PointToScreen(new System.Drawing.Point(oldState.X, oldState.Y));
-            OpenTK.Input.Mouse.SetPosition(mousePos.X, mousePos.Y);
-        }
-#endif
         
         public override void Log(string Message)
         {
@@ -288,15 +302,18 @@ namespace Microsoft.Xna.Framework
             var device = Game.GraphicsDevice;
             if (device != null)
                 device.Present();
-
-            if (_view != null)
-                _view.Window.SwapBuffers();
         }
 		
         protected override void Dispose(bool disposing)
         {
             if (!IsDisposed)
             {
+                if (toolkit != null)
+                {
+                    toolkit.Dispose();
+                    toolkit = null;
+                }
+
                 if (_view != null)
                 {
                     _view.Dispose();

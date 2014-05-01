@@ -3,7 +3,6 @@
 // file 'LICENSE.txt', which is part of this source code package.
 
 using System;
-using System.Diagnostics;
 
 #if MONOMAC
 using MonoMac.OpenGL;
@@ -21,12 +20,10 @@ namespace Microsoft.Xna.Framework.Graphics
 {
   public partial class SamplerState
   {
-        private static float MaxTextureMaxAnisotropy = 4;
+        private static float MaxTextureMaxAnisotropy = GraphicsCapabilities.MaxTextureAnisotropy;
 #if GLES
-        private const GetPName GetPNameMaxTextureMaxAnisotropy = (GetPName)All.MaxTextureMaxAnisotropyExt;
         private const TextureParameterName TextureParameterNameTextureMaxAnisotropy = (TextureParameterName)All.TextureMaxAnisotropyExt;
 #else
-        private const GetPName GetPNameMaxTextureMaxAnisotropy = (GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt;
         private const TextureParameterName TextureParameterNameTextureMaxAnisotropy = (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt;
 #endif
 

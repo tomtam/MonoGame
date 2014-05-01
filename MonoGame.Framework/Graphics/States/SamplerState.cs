@@ -2,9 +2,6 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE.txt', which is part of this source code package.
 
-using System;
-using System.Diagnostics;
-
 #if OPENGL
 #if MONOMAC
 using MonoMac.OpenGL;
@@ -23,20 +20,8 @@ namespace Microsoft.Xna.Framework.Graphics
 {
   public partial class SamplerState : GraphicsResource
   {
-    static SamplerState () 
+        static SamplerState () 
         {
-#if OPENGL
-#if GLES
-			if (GraphicsCapabilities.SupportsTextureFilterAnisotropic)
-            {
-                GL.GetFloat(GetPNameMaxTextureMaxAnisotropy, ref SamplerState.MaxTextureMaxAnisotropy);
-            }
-#else
-            GL.GetFloat(GetPNameMaxTextureMaxAnisotropy, out SamplerState.MaxTextureMaxAnisotropy);
-#endif
-            GraphicsExtensions.CheckGLError();
-#endif
-	
 			_anisotropicClamp = new Utilities.ObjectFactoryWithReset<SamplerState>(() => new SamplerState
             {
                 Name = "SamplerState.AnisotropicClamp",

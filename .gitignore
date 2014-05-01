@@ -50,6 +50,9 @@ monodroid*.msi
 #Unix temporary files
 *~
 
+# Output docs
+Documentation/Output/
+
 # Generated Project files
 # These should be changed to just *.csproj and *.sln when
 # all projects have been converted over.
@@ -76,3 +79,6 @@ MonoGame.Framework.WindowsPhone.sln
 MonoGame.Framework.Content.Pipeline.Windows.csproj
 MonoGame.Framework.Content.Pipeline.Linux.csproj
 MonoGame.Framework.Content.Pipeline.MacOS.csproj
+MonoGame.Framework.Web.csproj
+MonoGame.Framework.Web.sln
+/ThirdParty/*.sln
