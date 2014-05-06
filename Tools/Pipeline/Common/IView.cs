@@ -15,7 +15,7 @@ namespace MonoGame.Tools.Pipeline
 
     interface IView
     {
-        event SelectionChanged OnSelectionChanged;
+        //event SelectionChanged OnSelectionChanged;
 
         void Attach(IController controller);
 
@@ -24,6 +24,8 @@ namespace MonoGame.Tools.Pipeline
         bool AskSaveName(ref string filePath);
 
         bool AskOpenProject(out string projectFilePath);
+
+        bool AskImportProject(out string projectFilePath);
 
         void ShowError(string title, string message);        
 
@@ -43,6 +45,6 @@ namespace MonoGame.Tools.Pipeline
 
         void OutputClear();
 
-        bool ChooseContentFile(string initialDirectory, out string file);
+        bool ChooseContentFile(string initialDirectory, out string file);        
     }
 }

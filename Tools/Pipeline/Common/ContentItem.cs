@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿// MonoGame - Copyright (C) The MonoGame Team
+// This file is subject to the terms and conditions defined in
+// file 'LICENSE.txt', which is part of this source code package.
+
 using System.ComponentModel;
-using System.Globalization;
-using System.IO;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework.Content.Pipeline;
 
 namespace MonoGame.Tools.Pipeline
@@ -60,8 +58,8 @@ namespace MonoGame.Tools.Pipeline
                 View.UpdateProperties(this);
 
                 // Validate that our processor can accept input content of the type
-                // output by the new importer.                
-                if (_processor == null || _processor.InputType != _importer.OutputType)
+                // output by the new importer.
+                if ((_processor == null || _processor.InputType != _importer.OutputType) && _processor != PipelineTypes.InvalidProcessor)
                 {
                     // If it cannot, set the default processor.
                     Processor = PipelineTypes.FindProcessor(_importer.DefaultProcessor, _importer);
@@ -101,13 +99,21 @@ namespace MonoGame.Tools.Pipeline
 
         public void ResolveTypes()
         {
-            Importer = PipelineTypes.FindImporter(ImporterName, System.IO.Path.GetExtension(SourceFile));            
-            //Processor = PipelineTypes.FindProcessor(ProcessorName, _importer);
+            _importer = PipelineTypes.FindImporter(ImporterName, System.IO.Path.GetExtension(SourceFile));
+            if (_importer != null && (string.IsNullOrEmpty(ImporterName) || ImporterName != _importer.TypeName))
+                ImporterName = _importer.TypeName;
+            
+            _processor = PipelineTypes.FindProcessor(ProcessorName, _importer);
+            if (_processor != null && (string.IsNullOrEmpty(ProcessorName) || ProcessorName != _processor.TypeName ))
+                ProcessorName = _processor.TypeName;
+
+            if (_processor == null)
+                _processor = PipelineTypes.InvalidProcessor;
 
             // ProcessorParams get deserialized as strings
             // this code converts them to object(s) of their actual type
             // so that the correct editor appears within the property grid.
-            foreach (var p in Processor.Properties)
+            foreach (var p in _processor.Properties)
             {
                 if (!ProcessorParams.ContainsKey(p.Name))
                 {
