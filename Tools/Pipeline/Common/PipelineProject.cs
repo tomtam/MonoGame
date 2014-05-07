@@ -322,12 +322,16 @@ namespace MonoGame.Tools.Pipeline
                         parameterLines.Clear();
                         foreach (var j in i.ProcessorParams)
                         {
-                            var defaultValue = i.Processor.Properties[j.Key].DefaultValue;
-                            if (j.Value == null || j.Value == defaultValue)
-                                continue;
+                            // Could still be missing the real processor.
+                            if (i.Processor.Properties.Contains(j.Key))
+                            {
+                                var defaultValue = i.Processor.Properties[j.Key].DefaultValue;
+                                if (j.Value == null || j.Value == defaultValue)
+                                    continue;
 
-                            line = string.Format(lineFormat, "processorParam", string.Format(processorParamFormat, j.Key, j.Value));
-                            parameterLines.Add(line);
+                                line = string.Format(lineFormat, "processorParam", string.Format(processorParamFormat, j.Key, j.Value));
+                                parameterLines.Add(line);
+                            }
                         }
 
                         // If there were any non-default-value processor parameters

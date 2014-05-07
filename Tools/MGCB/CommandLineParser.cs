@@ -108,6 +108,8 @@ namespace MGCB
         {
             var success = true;
 
+            args = Preprocess(args);
+
             // Parse each argument in turn.
             foreach (var arg in args)
             {
@@ -129,6 +131,55 @@ namespace MGCB
             return success;
         }
 
+        private string[] Preprocess(string[] args)
+        {
+            var properties = new Dictionary<string, string>();
+            var output = new List<string>();
+            
+            for (var i = 0; i < args.Count(); i++)
+            {
+                var arg = args[i];
+                
+                if (arg.StartsWith("/if"))
+                {
+                    var words = arg.Substring(arg.IndexOf(':') + 1).Split('=');
+                    var name = words[0];
+                    var value = words[1];
+
+                    if (!properties.ContainsKey(name) || !properties[name].Equals(value))
+                    {
+                        // Skip args until next /endif
+                        for (var j = i + 1; j < args.Count(); j++)
+                        {
+                            if (args[j].Equals("/endif"))
+                            {
+                                i = j;
+                                break;
+                            }
+                        }                        
+                    }
+                    
+                    continue;
+                }
+
+                if (arg.StartsWith("/endif"))                
+                    continue;                
+
+                if (arg.StartsWith("/set"))
+                {
+                    var words = arg.Substring(arg.IndexOf(':')+1).Split('=');
+                    var name = words[0];
+                    var value = words[1];
+
+                    properties[name] = value;
+                    continue;
+                }
+                
+                output.Add(arg);
+            }
+
+            return output.ToArray();
+        }
 
         bool ParseArgument(string arg)
         {

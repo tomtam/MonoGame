@@ -96,6 +96,10 @@ namespace MonoGame.Tools.Pipeline
                 }
             }
 
+            public bool Contains(string name)
+            {
+                return _properties.Any(e => e.Name.Equals(name));
+            }
             public IEnumerator<Property> GetEnumerator()
             {
                 return _properties.AsEnumerable().GetEnumerator();
