@@ -22,16 +22,28 @@ namespace MGCB
     
     public class CommandLineParser
     {
-        readonly object _optionsObject;
+        private readonly object _optionsObject;
+        private readonly Queue<MemberInfo> _requiredOptions;
+        private readonly Dictionary<string, MemberInfo> _optionalOptions;
+        private readonly List<string> _requiredUsageHelp;
+        
+        public class PreprocessorProperty
+        {
+            public string Name;
+            public string[] Values;
+            public string CurrentValue;
+        }
 
-        readonly Queue<MemberInfo> _requiredOptions = new Queue<MemberInfo>();
-        readonly Dictionary<string, MemberInfo> _optionalOptions = new Dictionary<string, MemberInfo>();
-
-        readonly List<string> _requiredUsageHelp = new List<string>();
+        public readonly List<PreprocessorProperty> PreprocessorPropertyList;
 
         public CommandLineParser(object optionsObject)
         {
             _optionsObject = optionsObject;
+            _requiredOptions = new Queue<MemberInfo>();
+            _optionalOptions = new Dictionary<string, MemberInfo>();
+            _requiredUsageHelp = new List<string>();
+
+            PreprocessorPropertyList = new List<PreprocessorProperty>();            
 
             // Reflect to find what commandline options are available...
 
@@ -41,6 +53,8 @@ namespace MGCB
                 var param = GetAttribute<CommandLineParameterAttribute>(field);
                 if (param == null)
                     continue;
+
+                CheckReservedNames(param.Name);
 
                 if (param.Required)
                 {
@@ -63,6 +77,8 @@ namespace MGCB
                 if (param == null)
                     continue;
 
+                CheckReservedNames(param.Name);
+
                 if (param.Required)
                 {
                     // Record a required option.
@@ -84,6 +100,8 @@ namespace MGCB
                 if (param == null)
                     continue;
 
+                CheckReservedNames(param.Name);
+
                 // Only accept methods that take less than 1 parameter.
                 if (method.GetParameters().Length > 1)
                     throw new NotSupportedException("Methods must have one or zero parameters.");
@@ -101,8 +119,7 @@ namespace MGCB
                     _optionalOptions.Add(param.Name.ToLowerInvariant(), method);
                 }
             }
-        }
-
+        }        
 
         public bool ParseCommandLine(string[] args)
         {
@@ -133,20 +150,46 @@ namespace MGCB
 
         private string[] Preprocess(string[] args)
         {
-            var properties = new Dictionary<string, string>();
             var output = new List<string>();
             
             for (var i = 0; i < args.Count(); i++)
             {
                 var arg = args[i];
                 
+                if (arg.StartsWith("/define"))
+                {
+                    var words = arg.Substring(arg.IndexOf(':') + 1).Split('=');
+                    var name = words[0];
+                    var value = words[1];
+                    var values = value.Split(',');
+
+                    if (PreprocessorPropertyList.Any(e => e.Name.Equals(name)))
+                        throw new Exception(string.Format("PreprocessorProperty with name '{0}' already defined.", name));
+                    if (values.Length == 0)
+                        throw new Exception(string.Format("PreprocessorProperty with name '{0}' cannot be defined without any valid values.", name));
+
+                    var prop = new PreprocessorProperty()
+                        {
+                            Name = name,
+                            Values = values,
+                            CurrentValue = null,
+                        };
+                    PreprocessorPropertyList.Add(prop);
+
+                    continue;
+                }
+
                 if (arg.StartsWith("/if"))
                 {
                     var words = arg.Substring(arg.IndexOf(':') + 1).Split('=');
                     var name = words[0];
                     var value = words[1];
 
-                    if (!properties.ContainsKey(name) || !properties[name].Equals(value))
+                    var prop = PreprocessorPropertyList.Find(e => e.Name.Equals(name));
+                    if (prop == null)
+                        throw new Exception(string.Format("'{0}' is invalid, property of that name has not been defined.", arg));
+
+                    if (!value.Equals(prop.CurrentValue))
                     {
                         // Skip args until next /endif
                         for (var j = i + 1; j < args.Count(); j++)
@@ -162,8 +205,10 @@ namespace MGCB
                     continue;
                 }
 
-                if (arg.StartsWith("/endif"))                
-                    continue;                
+                if (arg.StartsWith("/endif"))   
+                    // Note: we cannot easily know if this is a valid closing /endif for an /if block which we processed
+                    //       or just a random floating /endif.
+                    continue;
 
                 if (arg.StartsWith("/set"))
                 {
@@ -171,7 +216,14 @@ namespace MGCB
                     var name = words[0];
                     var value = words[1];
 
-                    properties[name] = value;
+                    var prop = PreprocessorPropertyList.Find(e => e.Name.Equals(name));
+                    if (prop == null)
+                        throw new Exception(string.Format("'{0}' is invalid, property of that name has not been defined.", arg));
+
+                    if (!prop.Values.Contains(value))
+                        throw new Exception(string.Format("'{0}' is invalid, not one of the valid values defined '{1}'.", arg, string.Join(",", prop.Values)));
+
+                    prop.CurrentValue = value;
                     continue;
                 }
                 
@@ -265,6 +317,24 @@ namespace MGCB
             {
                 ShowError("Invalid value '{0}' for option '{1}'", value, GetAttribute<CommandLineParameterAttribute>(member).Name);
                 return false;
+            }
+        }
+
+        static readonly string[] ReservedNames = new[]
+            {
+                "define",
+                "set",
+                "if",
+            };
+
+        static void CheckReservedNames(string name)
+        {
+            foreach (var i in ReservedNames)
+            {
+                if (name.Equals(i))
+                {
+                    throw new Exception("Cannot use {0} as an argument name, it is reserved.");
+                }
             }
         }
 
