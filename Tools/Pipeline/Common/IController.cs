@@ -2,6 +2,8 @@
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE.txt', which is part of this source code package.
 
+using System;
+
 namespace MonoGame.Tools.Pipeline
 {
     interface IController
@@ -17,6 +19,31 @@ namespace MonoGame.Tools.Pipeline
         bool ProjectDiry { get; }
 
         /// <summary>
+        /// True if the project is actively building.
+        /// </summary>
+        bool ProjectBuilding { get; }
+
+        /// <summary>
+        /// Triggered when the project starts loading.
+        /// </summary>
+        event Action OnProjectLoading;
+
+        /// <summary>
+        /// Triggered when the project finishes loading.
+        /// </summary>
+        event Action OnProjectLoaded;
+
+        /// <summary>
+        /// Triggered when the project finishes building.
+        /// </summary>
+        event Action OnBuildStarted;
+
+        /// <summary>
+        /// Triggered when the project finishes building.
+        /// </summary>
+        event Action OnBuildFinished;
+
+        /// <summary>
         /// Notify controller that a property of Project or its contents has been modified.
         /// </summary>
         void OnProjectModified();
@@ -25,6 +52,11 @@ namespace MonoGame.Tools.Pipeline
         /// Notify controller that Project.References has been modified.
         /// </summary>
         void OnReferencesModified();
+
+        /// <summary>
+        /// Notify controller that a property of ContentItem has been modified.
+        /// </summary>        
+        void OnItemModified(ContentItem contentItem);
 
         void NewProject();
 
@@ -42,10 +74,12 @@ namespace MonoGame.Tools.Pipeline
 
         void Clean();
 
+        void CancelBuild();
+
         bool Exit();
 
         void Include(string initialDirectory);
 
-        void Exclude(ContentItem item);    
+        void Exclude(ContentItem item);        
     }
 }

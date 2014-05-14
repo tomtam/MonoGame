@@ -14,6 +14,7 @@
   <!-- Topics -->
   <topic id="welcome.md" page-id="main" name="MonoGame Documentation" filename="welcome.md">
 
+    <topic id="introduction.md" name="Introduction" filename="introduction.md"/>
     <topic id="getting_started.md" name="Getting Started" filename="getting_started.md"/>
     <topic id="tutorials.md" name="Tutorials" filename="tutorials.md"/>
     <topic id="links.md" name="External Links" filename="links.md"/>
@@ -57,9 +58,11 @@
 			>..\MonoGame.Framework\bin\WindowsGL\AnyCPU\Release\MonoGame.Framework.dll</source>
 
   <!-- Windows 8 Store -->
+  <!--
   <source	api="win8metro|Windows 8 Store" 
-			xml="..\MonoGame.Framework\bin\WindowsGL\AnyCPU\Release\MonoGame.Framework.xml"
-			>..\MonoGame.Framework\bin\WindowsGL\AnyCPU\Release\MonoGame.Framework.dll</source>
+			xml="..\MonoGame.Framework\bin\Windows8\AnyCPU\Release\MonoGame.Framework.xml"
+			>..\MonoGame.Framework\bin\Windows8\AnyCPU\Release\MonoGame.Framework.dll</source>
+  -->
 
   <!-- Windows Phone 8 -->
   <source	api="wp8|Windows Phone 8" 

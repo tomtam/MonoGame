@@ -49,6 +49,14 @@ namespace Microsoft.Xna.Framework.Media
 
                 return PlatformGetPlayPosition();
             }
+
+            set
+            {
+                if (_currentVideo == null)
+                    throw new Exception("Cannot set PlayPosition until after playback has begun.");
+                
+                PlatformSetPlayPosition(value);
+            }
         }
 
         /// <summary>
