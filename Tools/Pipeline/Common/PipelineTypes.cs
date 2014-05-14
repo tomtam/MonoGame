@@ -199,7 +199,7 @@ namespace MonoGame.Tools.Pipeline
             };
         }
 
-        public static void Load(PipelineProject project, IUserOutput userOutput)
+        public static void Load(PipelineProject project, IView view)
         {
             Unload();
 
@@ -224,7 +224,7 @@ namespace MonoGame.Tools.Pipeline
                     assemblyPaths.Add(path);      
             }
 
-            ResolveAssemblies(assemblyPaths, userOutput);
+            ResolveAssemblies(assemblyPaths, view);
 
             var importerDescriptions = new ImporterTypeDescription[_importers.Count];
             var cur = 0;
@@ -363,7 +363,7 @@ namespace MonoGame.Tools.Pipeline
             return null;
         }
 
-        private static void ResolveAssemblies(IEnumerable<string> assemblyPaths, IUserOutput userOutput)
+        private static void ResolveAssemblies(IEnumerable<string> assemblyPaths, IView view)
         {
             _importers = new List<ImporterInfo>();
             _processors = new List<ProcessorInfo>();
@@ -395,11 +395,11 @@ namespace MonoGame.Tools.Pipeline
                     var types = a.GetExportedTypes();
                     ProcessTypes(types);
 
-                    userOutput.OutputAppend(string.Format("Loaded reference assembly '{0}'", path));  
+                    //userOutput.OutputAppend(string.Format("Loaded reference assembly '{0}'", path));  
                 }
                 catch
                 {
-                    userOutput.ShowError("Error", string.Format("Failed to load reference assembly'{0}'", path));                    
+                    //userOutput.ShowError("Error", string.Format("Failed to load reference assembly'{0}'", path));                    
                 }                
             }
         }

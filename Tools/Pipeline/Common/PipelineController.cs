@@ -90,7 +90,7 @@ namespace MonoGame.Tools.Pipeline
 
             // Clear existing project data, initialize to a new blank project.
             _project = new PipelineProject();            
-            PipelineTypes.Load(_project);
+            PipelineTypes.Load(_project, _view);
 
             // Save the new project.
             _project.FilePath = projectFilePath;

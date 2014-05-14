@@ -87,6 +87,9 @@ namespace MonoGame.Tools.Pipeline
 
         #region IPipelineItem
 
+        [Browsable(false)]
+        public string OriginalPath { get { return _project.OriginalPath; } }
+
         [Category("Common")]
         [Description("The name of this project.")]
         public string Name
