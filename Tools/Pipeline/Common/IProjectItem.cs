@@ -3,18 +3,13 @@
 // file 'LICENSE.txt', which is part of this source code package.
 
 using System.Collections.Generic;
-using System.ComponentModel;
-
 namespace MonoGame.Tools.Pipeline
 {    
     interface IProjectItem
     {
         string OriginalPath { get; }
-
         string Name { get; }
         string Location { get; }
-
-        [Browsable(false)]
         string Icon { get; set; }
     }
 }

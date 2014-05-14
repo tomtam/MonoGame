@@ -266,9 +266,7 @@
     <Compile Include="Content\ContentReaders\Vector3Reader.cs" />
     <Compile Include="Content\ContentReaders\Vector4Reader.cs" />
     <Compile Include="Content\ContentReaders\VertexBufferReader.cs" />
-    <Compile Include="Content\ContentReaders\VertexDeclarationReader.cs">
-      <Platforms>Android,iOS,Linux,MacOS,Ouya,Windows8,Windows,WindowsGL,WindowsPhone</Platforms>
-    </Compile>
+    <Compile Include="Content\ContentReaders\VertexDeclarationReader.cs"/>
     <Compile Include="Content\ContentReaders\VideoReader.cs">
       <ExcludePlatforms>Angle,Linux,PSMobile,WindowsGL,WindowsPhone,Web</ExcludePlatforms>
     </Compile>
@@ -362,6 +360,8 @@
     <Compile Include="Graphics\ClearOptions.cs" />
     <Compile Include="Graphics\ColorWriteChannels.cs" />
     <Compile Include="Graphics\CubeMapFace.cs" />
+    <Compile Include="Graphics\DeviceLostException.cs" />
+    <Compile Include="Graphics\DeviceNotResetException.cs" />
     <Compile Include="GraphicsDeviceInformation.cs" />
     <Compile Include="GraphicsDeviceManager.cs" />
     <Compile Include="Graphics\DirectionalLight.cs" />
@@ -435,6 +435,7 @@
     <Compile Include="Graphics\ModelMeshPartCollection.cs" />
     <Compile Include="Graphics\ModelMeshPart.cs" />
     <Compile Include="Graphics\MultiSampleType.cs" />
+    <Compile Include="Graphics\NoSuitableGraphicsDeviceException.cs" />
     <Compile Include="Graphics\OcclusionQuery.cs">
       <ExcludePlatforms>iOS,Android,Ouya</ExcludePlatforms>
     </Compile>
@@ -707,12 +708,6 @@
 
     
     <!-- Microsoft.Xna.Framework.Input -->
-    <Compile Include="Input\AccelerometerCapabilities.cs">
-      <Platforms>iOS,Windows8,WindowsPhone</Platforms>
-    </Compile>
-    <Compile Include="Input\AccelerometerState.cs">
-      <Platforms>iOS,Linux,MacOS,Windows8,WindowsPhone</Platforms>
-    </Compile>
     <Compile Include="Input\Buttons.cs" />
     <Compile Include="Input\ButtonState.cs" />
     <Compile Include="Input\GamePad.cs" />
@@ -988,6 +983,8 @@
     </Compile>
     <Compile Include="Utilities\Hash.cs" />
     <Compile Include="Utilities\ObjectFactoryWithReset.cs" />
+    <Compile Include="Utilities\FileHelpers.cs" />
+    <Compile Include="Utilities\ReflectionHelpers.cs" />
 
     
     <!-- Android/OUYA Platform -->
@@ -1315,6 +1312,20 @@
     <Compile Include="Web\WebGameWindow.cs">
       <Platforms>Web</Platforms>
     </Compile>
+    <Compile Include="Libraries\JSAPI.cs">
+      <Platforms>Web</Platforms>
+    </Compile>
+    <Compile Include="Libraries\JSAPIAccess.cs">
+      <Platforms>Web</Platforms>
+    </Compile>
+    <Content Include="Libraries\MonoGame.Web.js">
+      <Platforms>Web</Platforms>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="MonoGame.Framework.manifest.js">
+      <Platforms>Web</Platforms>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
 	
     <!-- OpenGL Stock Effects -->
     <EmbeddedResource Include="Graphics\Effect\Resources\AlphaTestEffect.ogl.mgfxo">
