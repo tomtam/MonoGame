@@ -54,7 +54,7 @@ using OpenTK.Graphics;
 
 namespace Microsoft.Xna.Framework
 {
-    public class OpenTKGameWindow : GameWindow, IDisposable
+    class OpenTKGameWindow : GameWindow, IDisposable
     {
         private bool _isResizable;
         private bool _isBorderless;
@@ -343,7 +343,7 @@ namespace Microsoft.Xna.Framework
 
             // mouse
             // TODO review this when opentk 1.1 is released
-#if WINDOWS || LINUX
+#if WINDOWS || LINUX || ANGLE
             Mouse.setWindows(window);
 #else
             Mouse.UpdateMouseInfo(window.Mouse);

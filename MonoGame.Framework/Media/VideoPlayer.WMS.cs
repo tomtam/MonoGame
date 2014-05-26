@@ -175,9 +175,13 @@ namespace Microsoft.Xna.Framework.Media
                 _callback = new Callback(this);
                 _session.BeginGetEvent(_callback, null);
             }
-
-            // Start playing.
-            var varStart = new Variant();
+                        
+            var varStart = new Variant()
+                {
+                    Type = VariantType.Default,
+                    ElementType = VariantElementType.Long,
+                    Value = (long)0,
+                };
             _session.Start(null, varStart);
         }
 
@@ -202,7 +206,33 @@ namespace Microsoft.Xna.Framework.Media
 
         private TimeSpan PlatformGetPlayPosition()
         {
-            return TimeSpan.Zero;
+            if (_state == MediaState.Stopped)
+                return TimeSpan.Zero;
+
+            return TimeSpan.FromSeconds((double)_clock.Time / 10000000);
+        }
+
+        private void PlatformSetPlayPosition(TimeSpan pos)
+        {
+            var curState = _state;
+            if (curState == MediaState.Stopped)
+                return;
+
+            if (curState == MediaState.Playing)
+                _session.Pause();
+
+            var time = (long)((pos.TotalSeconds) * 10000000);            
+
+            var varStart = new Variant()
+                {
+                    Type = VariantType.Default,
+                    ElementType = VariantElementType.Long,
+                    Value = time,
+                };
+            _session.Start(Guid.Empty, varStart);
+
+            if (curState == MediaState.Paused)
+                _session.Pause();
         }
 
         private void PlatformDispose()

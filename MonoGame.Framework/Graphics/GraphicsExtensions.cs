@@ -8,6 +8,9 @@ using MonoMac.OpenGL;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 #elif GLES
+#if ANGLE
+using OpenTK.Graphics;
+#endif
 using OpenTK.Graphics.ES20;
 using BlendEquationMode = OpenTK.Graphics.ES20.All;
 using BlendingFactorSrc = OpenTK.Graphics.ES20.All;
@@ -26,8 +29,7 @@ using GetPName = OpenTK.Graphics.ES20.All;
 
 namespace Microsoft.Xna.Framework.Graphics
 {
-	[CLSCompliant(false)]
-    public static class GraphicsExtensions
+    static class GraphicsExtensions
     {
 #if OPENGL
         public static All OpenGL11(CullMode cull)
@@ -444,7 +446,7 @@ namespace Microsoft.Xna.Framework.Graphics
 
 		}
 
-#if WINDOWS || LINUX
+#if WINDOWS || LINUX || ANGLE
         /// <summary>
         /// Convert a <see cref="SurfaceFormat"/> to an OpenTK.Graphics.ColorFormat.
         /// This is used for setting up the backbuffer format of the OpenGL context.
@@ -547,7 +549,7 @@ namespace Microsoft.Xna.Framework.Graphics
 				glFormat = PixelFormat.Luminance;
 				glType = PixelType.UnsignedByte;
 				break;
-#if !IOS && !ANDROID
+#if !IOS && !ANDROID && !ANGLE
 			case SurfaceFormat.Dxt1:
 				glInternalFormat = PixelInternalFormat.CompressedRgbS3tcDxt1Ext;
 				glFormat = (PixelFormat)All.CompressedTextureFormats;
@@ -658,6 +660,10 @@ namespace Microsoft.Xna.Framework.Graphics
                     
 
 #if IOS || ANDROID
+            case SurfaceFormat.RgbEtc1:
+                glInternalFormat = (PixelInternalFormat)0x8D64; // GL_ETC1_RGB8_OES
+                glFormat = (PixelFormat)All.CompressedTextureFormats;
+                break;
 			case SurfaceFormat.RgbPvrtc2Bpp:
 				glInternalFormat = PixelInternalFormat.CompressedRgbPvrtc2Bppv1Img;
 				glFormat = (PixelFormat)All.CompressedTextureFormats;
@@ -697,7 +703,7 @@ namespace Microsoft.Xna.Framework.Graphics
             }
         }
 
-        public static int Size(this SurfaceFormat surfaceFormat)
+        public static int GetSize(this SurfaceFormat surfaceFormat)
         {
             switch (surfaceFormat)
             {
@@ -741,8 +747,8 @@ namespace Microsoft.Xna.Framework.Graphics
                     throw new ArgumentException();
             }
         }
-		
-        public static int GetTypeSize(this VertexElementFormat elementFormat)
+
+        public static int GetSize(this VertexElementFormat elementFormat)
         {
             switch (elementFormat)
             {
@@ -790,7 +796,7 @@ namespace Microsoft.Xna.Framework.Graphics
         public static int GetBoundTexture2D()
         {
             var prevTexture = 0;
-#if GLES
+#if GLES && !ANGLE
             GL.GetInteger(GetPName.TextureBinding2D, ref prevTexture);
 #else
             GL.GetInteger(GetPName.TextureBinding2D, out prevTexture);
@@ -803,7 +809,7 @@ namespace Microsoft.Xna.Framework.Graphics
 		[DebuggerHidden]
         public static void CheckGLError()
         {
-#if GLES
+#if GLES && !ANGLE
             All error = GL.GetError();
             if (error != All.False)
                 throw new MonoGameGLException("GL.GetError() returned " + error.ToString());
@@ -837,7 +843,7 @@ namespace Microsoft.Xna.Framework.Graphics
 #endif
     }
 
-    public class MonoGameGLException : Exception
+    internal class MonoGameGLException : Exception
     {
         public MonoGameGLException(string message)
             : base(message)
