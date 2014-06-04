@@ -103,7 +103,7 @@ namespace Microsoft.Xna.Framework.Content.Pipeline
             FreeImage.UnloadEx(ref fBitmap);
             
 #else
-            var systemBitmap = new Bitmap(filename);
+            output._bitmap = new Bitmap(filename);
 #endif
 
             var height = systemBitmap.Height;

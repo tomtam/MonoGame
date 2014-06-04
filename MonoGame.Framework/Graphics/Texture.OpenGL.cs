@@ -23,7 +23,7 @@ namespace Microsoft.Xna.Framework.Graphics
 
         private void PlatformGraphicsDeviceResetting()
         {
-            DeleteGLTexture();
+            glTexture = -1;
             glLastSamplerState = null;
         }
 
@@ -31,25 +31,17 @@ namespace Microsoft.Xna.Framework.Graphics
         {
             if (!IsDisposed)
             {
-                DeleteGLTexture();
+                GraphicsDevice.AddDisposeAction(() =>
+                {
+                    GL.DeleteTextures(1, ref glTexture);
+                    GraphicsExtensions.CheckGLError();
+                    glTexture = -1;
+                });
+
                 glLastSamplerState = null;
             }
 
             base.Dispose(disposing);
-        }
-
-        private void DeleteGLTexture()
-        {
-            if (glTexture > 0)
-            {
-                int texture = glTexture;
-                GraphicsDevice.AddDisposeAction(() =>
-                {
-                    GL.DeleteTextures(1, ref texture);
-                    GraphicsExtensions.CheckGLError();
-                });
-            }
-            glTexture = -1;
         }
     }
 }

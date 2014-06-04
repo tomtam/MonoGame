@@ -412,8 +412,26 @@ namespace Microsoft.Xna.Framework.Graphics
 				var rectangle = RectangleF.Empty;
 				var cgImage = nsImage.AsCGImage (ref rectangle, null, null);
 #endif
-
-			    return PlatformFromStream(graphicsDevice, cgImage);
+				
+				var width = cgImage.Width;
+				var height = cgImage.Height;
+				
+				var data = new byte[width * height * 4];
+				
+				var colorSpace = CGColorSpace.CreateDeviceRGB();
+				var bitmapContext = new CGBitmapContext(data, width, height, 8, width * 4, colorSpace, CGBitmapFlags.PremultipliedLast);
+				bitmapContext.DrawImage(new RectangleF(0, 0, width, height), cgImage);
+				bitmapContext.Dispose();
+				colorSpace.Dispose();
+				
+                Texture2D texture = null;
+                Threading.BlockOnUIThread(() =>
+                {
+				    texture = new Texture2D(graphicsDevice, width, height, false, SurfaceFormat.Color);			
+    				texture.SetData(data);
+                });
+			
+				return texture;
 			}
 #endif
 #if ANDROID
@@ -488,47 +506,6 @@ namespace Microsoft.Xna.Framework.Graphics
             }
 #endif
         }
-
-#if IOS
-        public static Texture2D FromStream(GraphicsDevice graphicsDevice, UIImage uiImage)
-        {
-            return PlatformFromStream(graphicsDevice, uiImage.CGImage);
-        }
-#endif
-
-#if MONOMAC
-        public static Texture2D FromStream(GraphicsDevice graphicsDevice, NSImage nsImage)
-        {
-            var rectangle = RectangleF.Empty;
-		    var cgImage = nsImage.AsCGImage (ref rectangle, null, null);
-            return PlatformFromStream(graphicsDevice, cgImage);
-        }
-#endif
-
-#if IOS || MONOMAC
-        public static Texture2D PlatformFromStream(GraphicsDevice graphicsDevice, CGImage cgImage)
-        {
-            var width = cgImage.Width;
-            var height = cgImage.Height;
-
-            var data = new byte[width * height * 4];
-
-            var colorSpace = CGColorSpace.CreateDeviceRGB();
-            var bitmapContext = new CGBitmapContext(data, width, height, 8, width * 4, colorSpace, CGBitmapFlags.PremultipliedLast);
-            bitmapContext.DrawImage(new RectangleF(0, 0, width, height), cgImage);
-            bitmapContext.Dispose();
-            colorSpace.Dispose();
-
-            Texture2D texture = null;
-            Threading.BlockOnUIThread(() =>
-            {
-                texture = new Texture2D(graphicsDevice, width, height, false, SurfaceFormat.Color);
-                texture.SetData(data);
-            });
-
-            return texture;
-        }
-#endif
 
         private void FillTextureFromStream(Stream stream)
         {
