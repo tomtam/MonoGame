@@ -7,19 +7,19 @@ using System.Windows.Forms.Design;
 namespace MonoGame.Tools.Pipeline
 {
     /// <summary>
-    /// Modal dialog for editing individual lines within PipelineProject.References.
+    /// Modal dialog for a list of strings edited as individual lines in a textbox.
     /// </summary>
-    public class AssemblyReferenceListEditForm : Form
+    public class StringListEditForm : Form
     {
         private readonly RichTextBox _textbox;
         private readonly Button _okButton;
 
-        public AssemblyReferenceListEditForm()
+        public StringListEditForm()
         {
             MinimizeBox = false;
             MaximizeBox = false;
 
-            StartPosition = FormStartPosition.CenterScreen;
+            StartPosition = FormStartPosition.CenterParent;
 
             _textbox = new RichTextBox()
             {
@@ -62,9 +62,9 @@ namespace MonoGame.Tools.Pipeline
     }
 
     /// <summary>
-    /// Custom editor for a the References property of a PipelineProject.
+    /// Custom editor for a list of strings edited as individual lines in a textbox.
     /// </summary>    
-    public class AssemblyReferenceListEditor : UITypeEditor
+    public class StringListEditor : UITypeEditor
     {
         public override UITypeEditorEditStyle GetEditStyle(ITypeDescriptorContext context)
         {
@@ -74,10 +74,14 @@ namespace MonoGame.Tools.Pipeline
         public override object EditValue(ITypeDescriptorContext context, System.IServiceProvider provider, object value)
         {
             var svc = provider.GetService(typeof (IWindowsFormsEditorService)) as IWindowsFormsEditorService;
+            
             var lines = (List<string>)value;
+            if (lines == null)
+                lines = new List<string>();
+
             if (svc != null && lines != null)
             {
-                using (var form = new AssemblyReferenceListEditForm())
+                using (var form = new StringListEditForm())
                 {
                     form.Lines = lines.ToArray();
                     if (svc.ShowDialog(form) == DialogResult.OK)

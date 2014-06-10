@@ -248,11 +248,21 @@ namespace MGCB
 
                 if (arg.StartsWith("$set"))
                 {
-                    var words = arg.Substring(5).Split('=');
-                    var name = words[0];
-                    var value = words[1];
+                    string lparam, rparam;
+                    var statement = arg.Substring(5);
+                    if (statement.Contains("="))
+                    {
+                        var words = statement.Split('=');
+                        lparam = words[0];
+                        rparam = words[1];
+                    }
+                    else
+                    {
+                        lparam = statement;
+                        rparam = "True";
+                    }
 
-                    _properties[name] = value;
+                    _properties[lparam] = rparam;
 
                     continue;
                 }
@@ -262,11 +272,21 @@ namespace MGCB
                     if (fileStack.Count == 0)
                         throw new Exception("$if is invalid outside of a response file.");
 
-                    var words = arg.Substring(4).Split('=');
-                    var name = words[0];
-                    var value = words[1];
+                    string lparam, rparam;
+                    var statement = arg.Substring(4);
+                    if (statement.Contains("="))
+                    {
+                        var words = statement.Split('=');
+                        lparam = words[0];
+                        rparam = words[1];
+                    }
+                    else
+                    {
+                        lparam = statement;
+                        rparam = "True";
+                    }
 
-                    var condition = new Tuple<string, string>(name, value);
+                    var condition = new Tuple<string, string>(lparam, rparam);
                     ifstack.Push(condition);
                     
                     continue;

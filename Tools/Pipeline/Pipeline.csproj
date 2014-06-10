@@ -120,7 +120,6 @@
     <EmbeddedResource Include="Windows\NewContentDialog.resx">
       <DependentUpon>NewContentDialog.cs</DependentUpon>
     </EmbeddedResource>
-    <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>

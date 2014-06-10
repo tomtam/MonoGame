@@ -34,7 +34,25 @@ namespace MonoGame.Tools.Pipeline
         #endregion
 
         #region CommandLineParameters
-        
+
+        [CommandLineParameter(
+            Name = "DefinePlatform",
+            ValueName = "platformName",
+            Description = "Defines a platform by name for which this project and it's items can have unique values.")]
+        public void DefinePlatform(string name)
+        {
+            _project.PlatformsDefined.Add(name);
+        }
+
+        [CommandLineParameter(
+            Name = "DefineConfig",
+            ValueName = "configName",
+            Description = "Defines a config by name for which this project and it's items can have unique values.")]
+        public void DefineConfig(string name)
+        {
+            _project.ConfigsDefined.Add(name);
+        }
+
         [CommandLineParameter(
             Name = "outputDir",
             ValueName = "directoryPath",
@@ -210,6 +228,7 @@ namespace MonoGame.Tools.Pipeline
 
             var commands = new string[]
                 {
+                    "$set PipelineTool",
                     string.Format("/@:{0}", projectFilePath),
                 };
             parser.Parse(commands);
@@ -226,6 +245,22 @@ namespace MonoGame.Tools.Pipeline
             const string lineFormat = "/{0}:{1}";
             const string processorParamFormat = "{0}={1}";
             string line;
+
+            line = FormatDivider("Defines");
+            io.WriteLine(line);
+
+            io.WriteLine("$if PipelineTool");
+            foreach (var i in _project.PlatformsDefined)
+            {
+                line = string.Format(lineFormat, "DefinePlatform", i);
+                io.WriteLine(line);
+            }
+            foreach (var i in _project.ConfigsDefined)
+            {
+                line = string.Format(lineFormat, "DefineConfig", i);
+                io.WriteLine(line);
+            }
+            io.WriteLine("$endif");
 
             line = FormatDivider("Global Properties");
             io.WriteLine(line);

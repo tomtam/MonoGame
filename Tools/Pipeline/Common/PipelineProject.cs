@@ -14,7 +14,11 @@ using Microsoft.Xna.Framework.Graphics;
 namespace MonoGame.Tools.Pipeline
 {
     internal class PipelineProject : IProjectItem
-    {        
+    {
+        public List<string> PlatformsDefined { get; set; }
+
+        public List<string> ConfigsDefined { get; set; }
+
         public IController Controller;      
   
         public string OriginalPath { get; set; }
@@ -32,6 +36,7 @@ namespace MonoGame.Tools.Pipeline
         public GraphicsProfile Profile { get; set; }
 
         public string Config { get; set; }     
+        public List<string> Defines { get; set; }
 
         #region IPipelineItem
 
@@ -59,7 +64,7 @@ namespace MonoGame.Tools.Pipeline
         }
 
         [Browsable(false)]
-        public string Icon { get; set; }
+        public string Icon { get; set; }        
 
         #endregion
 
@@ -67,6 +72,8 @@ namespace MonoGame.Tools.Pipeline
         {
             ContentItems = new List<ContentItem>();
             References = new List<string>();
+            PlatformsDefined = new List<string>();
+            ConfigsDefined = new List<string>();
             OutputDir = "bin";
             IntermediateDir = "obj";
         }

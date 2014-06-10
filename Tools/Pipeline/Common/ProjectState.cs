@@ -20,6 +20,8 @@ namespace MonoGame.Tools.Pipeline
         public GraphicsProfile Profile;
         public string Config;
         public string OriginalPath;
+        public List<string> DefinedPlatforms;
+        public List<string> DefinedConfigs; 
 
         /// <summary>
         /// Create a ProjectState storing member values of the passed PipelineProject.
@@ -35,6 +37,8 @@ namespace MonoGame.Tools.Pipeline
                     Platform = proj.Platform,
                     Profile = proj.Profile,
                     Config = proj.Config,        
+                    DefinedPlatforms = new List<string>(proj.PlatformsDefined),
+                    DefinedConfigs = new List<string>(proj.ConfigsDefined),
                 };
 
             return state;
@@ -51,6 +55,8 @@ namespace MonoGame.Tools.Pipeline
             proj.Platform = Platform;
             proj.Profile = Profile;
             proj.Config = Config;
+            proj.PlatformsDefined = new List<string>(DefinedPlatforms);
+            proj.ConfigsDefined = new List<string>(DefinedConfigs);
         }
     }    
 }

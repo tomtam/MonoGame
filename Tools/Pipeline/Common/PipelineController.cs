@@ -565,5 +565,31 @@ namespace MonoGame.Tools.Pipeline
 
             return _project.Location + "\\" + filePath;
         }
+
+        #region Config/Platform
+
+        public string CurrentPlatform { get; private set; }
+
+        public string CurrentConfig { get; private set; }
+
+        public IEnumerable<string> EnumeratePlatforms()
+        {
+            if (_project != null)
+            {
+                foreach (var i in _project.PlatformsDefined)
+                    yield return i;
+            }
+        }
+
+        public IEnumerable<string> EnumerateConfigs()
+        {
+            if (_project != null)
+            {
+                foreach (var i in _project.ConfigsDefined)
+                    yield return i;
+            }
+        }
+
+        #endregion
     }
 }

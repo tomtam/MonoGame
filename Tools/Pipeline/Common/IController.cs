@@ -4,11 +4,12 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.Xna.Framework.Content.Pipeline;
 
 namespace MonoGame.Tools.Pipeline
 {
     interface IController
-    {
+    {                    
         /// <summary>
         /// Types of content which can be created and added to a project. 
         /// </summary>
@@ -120,6 +121,16 @@ namespace MonoGame.Tools.Pipeline
         void Redo();
 
         #endregion        
+
+        #region Config/Platform
+
+        string CurrentPlatform { get; }
+        string CurrentConfig { get; }
+
+        IEnumerable<string> EnumeratePlatforms();
+        IEnumerable<string> EnumerateConfigs();
+
+        #endregion
 
         string GetFullPath(string filePath);
     }

@@ -18,6 +18,26 @@ namespace MonoGame.Tools.Pipeline
     {
         private readonly PipelineProject _project;
 
+        [DisplayName("\tPlatformsDefined")]
+        [Category("Defines")]
+        [Description("Platform names for which this project and its items have different settings.")]
+        [Editor(typeof(StringListEditor), typeof(UITypeEditor))]
+        public List<string> PlatformsDefined
+        {
+            get { return _project.PlatformsDefined; }
+            set { _project.PlatformsDefined = value; }
+        }
+
+        [DisplayName("\tConfigsDefined")]
+        [Category("Defines")]
+        [Description("Configuration names for which this project and its items have different settings.")]
+        [Editor(typeof(StringListEditor), typeof(UITypeEditor))]
+        public List<string> ConfigsDefined
+        {
+            get { return _project.ConfigsDefined; }
+            set { _project.ConfigsDefined = value; }
+        }
+
         [Category("Settings")]
         [DisplayName("Output Folder")]
         [Description("The folder where the final build content is placed.")]
@@ -45,7 +65,7 @@ namespace MonoGame.Tools.Pipeline
         }
 
         [Category("Settings")]
-        [Editor(typeof (AssemblyReferenceListEditor), typeof (UITypeEditor))]
+        [Editor(typeof (StringListEditor), typeof (UITypeEditor))]
         public List<string> References
         {
             get { return _project.References; }
@@ -61,20 +81,20 @@ namespace MonoGame.Tools.Pipeline
         }
 
         [Category("Settings")]
+        [Description("The config to target when building content.")]
+        public string Config
+        {
+            get { return _project.Config; }
+            set { _project.Config = value; }
+        }
+
+        [Category("Settings")]
         [Description("The graphics profile to target when building content.")]
         public GraphicsProfile Profile
         {
             get { return _project.Profile; }
             set { _project.Profile = value; }
-        }
-
-        [Category("Settings")]
-        [Description("The configuration to target when building content.")]
-        public string Config 
-        {
-            get { return _project.Config; }
-            set { _project.Config = value; }
-        }
+        }        
 
         [Category("Statistics")]
         [DisplayName("Total Items")]
