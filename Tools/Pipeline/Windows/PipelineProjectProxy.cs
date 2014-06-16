@@ -8,10 +8,12 @@ using System.Drawing.Design;
 using FolderSelect;
 using Microsoft.Xna.Framework.Content.Pipeline;
 using Microsoft.Xna.Framework.Graphics;
-using MonoGame.Tools.Pipeline.Common;
 
 namespace MonoGame.Tools.Pipeline
 {
+    /// <summary>
+    /// Wraps a PipelineProject object, defining its appearance within the windows specific IView (MainView).
+    /// </summary>
     internal class PipelineProjectProxy : IProjectItem
     {
         private readonly PipelineProject _project;
@@ -37,7 +39,7 @@ namespace MonoGame.Tools.Pipeline
         {
             get { return _project.IntermediateDir; }
             set
-            {
+            {       
                 _project.IntermediateDir = Util.GetRelativePath(value, _project.Location);
             }
         }
@@ -86,6 +88,12 @@ namespace MonoGame.Tools.Pipeline
         }
 
         #region IPipelineItem
+
+        [Browsable(false)]
+        public string OriginalPath
+        {
+            get { return _project.OriginalPath; }
+        }
 
         [Category("Common")]
         [Description("The name of this project.")]

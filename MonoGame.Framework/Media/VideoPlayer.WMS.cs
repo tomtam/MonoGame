@@ -204,6 +204,16 @@ namespace Microsoft.Xna.Framework.Media
             _volumeController.MasterVolume = _volume;
         }
 
+        private void PlatformSetIsLooped()
+        {
+            throw new NotImplementedException();
+        }
+
+        private void PlatformSetIsMuted()
+        {
+            _volumeController.Mute = _isMuted;
+        }
+
         private TimeSpan PlatformGetPlayPosition()
         {
             if (_state == MediaState.Stopped)
@@ -242,6 +252,10 @@ namespace Microsoft.Xna.Framework.Media
                 _textureBuffer.Dispose();
                 _textureBuffer = null;
             }
+        }
+
+        private void PlatformDispose(bool disposing)
+        {
         }
     }
 }

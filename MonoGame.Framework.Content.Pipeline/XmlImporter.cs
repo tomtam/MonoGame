@@ -25,7 +25,7 @@ namespace Microsoft.Xna.Framework.Content.Pipeline
     /// <summary>
     /// Implements an importer for reading intermediate XML files. This is a wrapper around IntermediateSerializer.
     /// </summary>
-    [ContentImporter(".xml", DisplayName = "Xml Importer - MonoGame", DefaultProcessor = "ModelProcessor")]
+    [ContentImporter(".xml", DisplayName = "Xml Importer - MonoGame", DefaultProcessor = "PassThroughProcessor")]
     public class XmlImporter : ContentImporter<object>
     {
         private static readonly char[] _elementSeparator = new[] { ' ' };
@@ -111,6 +111,16 @@ namespace Microsoft.Xna.Framework.Content.Pipeline
         /// </summary>
         private bool FindType(string typeName, out string expandedName, out Type foundType)
         {
+            bool isArray = false;            
+            if (typeName.EndsWith("[]"))
+            {
+                isArray = true;
+                typeName = typeName.Replace("[]", "");
+            }
+
+            // TODO:
+            // Deal with List types...
+
             // Shortcut for friendly C# names
             if (_typeAliases.TryGetValue(typeName, out foundType))
             {
@@ -130,6 +140,11 @@ namespace Microsoft.Xna.Framework.Content.Pipeline
 
             if (foundType == null)
                 foundType = Type.GetType(expandedName, false, true);
+
+            if (foundType != null && isArray)
+            {
+                foundType = foundType.MakeArrayType();                
+            }
 
             return foundType != null;
         }
@@ -392,8 +407,14 @@ namespace Microsoft.Xna.Framework.Content.Pipeline
             {
                 // Swizzle ARGB -> ABGR
                 var argb = uint.Parse(value, NumberStyles.HexNumber);
-                var abgr = ((argb & 0xFF000000) | ((argb & 0x00FF0000) >> 16) | ((argb & 0x000000FF) << 16));
-                return new Color { PackedValue = abgr };
+
+                uint abgr = 0;
+                abgr |= (argb & 0xFF000000);
+                abgr |= (argb & 0x00FF0000) >> 16;
+                abgr |= (argb & 0x0000FF00);
+                abgr |= (argb & 0x000000FF) << 16;
+                
+                return new Color { PackedValue = abgr };                
             }
 
             throw new NotImplementedException();
