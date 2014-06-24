@@ -104,6 +104,9 @@ namespace Microsoft.Xna.Framework.Graphics
 #elif (WINDOWS && OPENGL) || LINUX
 
                 return new DisplayMode(OpenTK.DisplayDevice.Default.Width, OpenTK.DisplayDevice.Default.Height, (int)OpenTK.DisplayDevice.Default.RefreshRate, SurfaceFormat.Color);
+#elif WINDOWS
+                var dc = System.Drawing.Graphics.FromHwnd(IntPtr.Zero).GetHdc();
+                return new DisplayMode(GetDeviceCaps(dc, HORZRES), GetDeviceCaps(dc, VERTRES), GetDeviceCaps(dc, VREFRESH), SurfaceFormat.Color);
 #else
                 return new DisplayMode(800, 600, 60, SurfaceFormat.Color);
 #endif
@@ -297,6 +300,18 @@ namespace Microsoft.Xna.Framework.Graphics
 
                         }
                     }
+#elif DIRECTX && !WINDOWS_PHONE
+                    var dxgiFactory = new SharpDX.DXGI.Factory1();
+                    var adapter = dxgiFactory.GetAdapter(0);
+                    var output = adapter.Outputs[0];
+                    var displayModes = output.GetDisplayModeList(SharpDX.DXGI.Format.R8G8B8A8_UNorm, 0);
+
+                    modes.Clear();
+                    foreach (var displayMode in displayModes)
+                    {
+                        int refreshRate = (int)Math.Round(displayMode.RefreshRate.Numerator / (float)displayMode.RefreshRate.Denominator);
+                        modes.Add(new DisplayMode(displayMode.Width, displayMode.Height, refreshRate, SurfaceFormat.Color));
+                    }
 #endif
                     supportedDisplayModes = new DisplayModeCollection(modes);
                 }
@@ -332,5 +347,14 @@ namespace Microsoft.Xna.Framework.Graphics
                 return aspect > limit;
             }
         }
+
+#if WINDOWS && !OPENGL
+        [System.Runtime.InteropServices.DllImport("gdi32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto, SetLastError = true, ExactSpelling = true)]
+        public static extern int GetDeviceCaps(IntPtr hDC, int nIndex);
+
+        private const int HORZRES = 8;
+        private const int VERTRES = 10;
+        private const int VREFRESH = 116;
+#endif
     }
 }
