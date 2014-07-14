@@ -264,17 +264,19 @@ namespace Microsoft.Xna.Framework
 
             if (keyCode == Keycode.VolumeUp)
             {
-                AudioManager audioManager = (AudioManager)Game.Activity.GetSystemService(Context.AudioService);
+                AudioManager audioManager = (AudioManager)Context.GetSystemService(Context.AudioService);
                 audioManager.AdjustStreamVolume(Stream.Music, Adjust.Raise, VolumeNotificationFlags.ShowUi);
+                return true;
             }
 
             if (keyCode == Keycode.VolumeDown)
             {
-                AudioManager audioManager = (AudioManager)Game.Activity.GetSystemService(Context.AudioService);
+                AudioManager audioManager = (AudioManager)Context.GetSystemService(Context.AudioService);
                 audioManager.AdjustStreamVolume(Stream.Music, Adjust.Lower, VolumeNotificationFlags.ShowUi);
+                return true;
             }
 
-            return true;
+            return base.OnKeyDown(keyCode, e);
         }
 
         public override bool OnKeyUp(Keycode keyCode, KeyEvent e)
@@ -284,7 +286,7 @@ namespace Microsoft.Xna.Framework
                 return true;
 #endif
             Keyboard.KeyUp(keyCode);
-            return true;
+            return base.OnKeyUp(keyCode, e);
         }
 
 #if OUYA
