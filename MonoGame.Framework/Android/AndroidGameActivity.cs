@@ -25,7 +25,8 @@ namespace Microsoft.Xna.Framework
 		/// </param>
 		protected override void OnCreate (Bundle savedInstanceState)
 		{
-			base.OnCreate (savedInstanceState);
+            RequestWindowFeature(WindowFeatures.NoTitle);
+            base.OnCreate(savedInstanceState);
 
 			IntentFilter filter = new IntentFilter();
 		    filter.AddAction(Intent.ActionScreenOff);
@@ -37,8 +38,6 @@ namespace Microsoft.Xna.Framework
 
             _orientationListener = new OrientationListener(this);
 
-            RequestWindowFeature(WindowFeatures.NoTitle);
-
 			Game.Activity = this;
 		}
 
@@ -49,6 +48,11 @@ namespace Microsoft.Xna.Framework
 			// we need to refresh the viewport here.
 			base.OnConfigurationChanged (newConfig);
 		}
+
+        public override void OnBackPressed()
+        {
+            this.MoveTaskToBack(true);
+        }
 
         protected override void OnPause()
         {

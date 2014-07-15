@@ -145,14 +145,35 @@ namespace MonoGame.Tests.ContentPipeline
     }
     #endregion
 
+    #region Primitive Types
+    public class PrimitiveTypes
+    {
+        public char Char;
+        public byte Byte;
+        public sbyte SByte;
+        public short Short;
+        public ushort UShort;
+        public int Int;
+        public uint UInt;
+        public long Long;
+        public ulong ULong;
+        public float Float;
+        public double Double;
+    }
+    #endregion
+
     #region MathTypes
     public class MathTypes
     {
-        public Vector3 Vector;
+        public Point Point;
         public Rectangle Rectangle;
+        public Vector3 Vector3;
+        public Vector4 Vector4;
         public Quaternion Quaternion;
+        public Plane Plane;
+        public Matrix Matrix;
         public Color Color;
-        public Vector2[] VectorArray = new Vector2[0];
+        public Vector2[] Vector2Array = new Vector2[0];
     }
     #endregion
 
