@@ -277,15 +277,13 @@ namespace MonoGame.Framework
         {
             if (KeyState == null)
                 return;
-                        
-            // Certain special keys, such as pause and arrows, have their
-            // press/hold/release event sequence wrapped with LButton|OemClear 
-            // press/release events.
-            // The MakeCode for such events can be confused with that of other keys
-            // if we do not return here.
-            if ((int)args.Key == 255)
+
+            if ((int)args.Key == 0xff)
+            {
+                // dead key, e.g. a "shift" automatically happens when using Up/Down/Left/Right
                 return;
-            
+            }
+
             XnaKey xnaKey;
 
             switch (args.MakeCode)
