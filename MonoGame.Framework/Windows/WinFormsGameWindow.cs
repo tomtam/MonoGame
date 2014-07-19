@@ -376,6 +376,15 @@ namespace MonoGame.Framework
 
                 Game.Tick();
             }
+
+            // We need to remove the last message in the message 
+            // pump as it will keep us from restarting on this 
+            // same thread.
+            //
+            // This is critical for some NUnit runners which
+            // typically will run all the tests on the same
+            // process/thread.
+            PeekMessage(out msg, IntPtr.Zero, 0, 0, 1);
         }
 
         [StructLayout(LayoutKind.Sequential)]
