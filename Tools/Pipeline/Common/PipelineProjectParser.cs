@@ -29,22 +29,19 @@ namespace MonoGame.Tools.Pipeline
         #region CommandLineParameters
         
         [CommandLineParameter(
-            Name = "outputDir",
-            IsPath = true,
+            Name = "outputDir",            
             ValueName = "directoryPath",
             Description = "The directory where all content is written.")]
         public string OutputDir { set { _project.OutputDir = value; } }
 
         [CommandLineParameter(
-            Name = "intermediateDir",
-            IsPath = true,
+            Name = "intermediateDir",            
             ValueName = "directoryPath",
             Description = "The directory where all intermediate files are written.")]
         public string IntermediateDir { set { _project.IntermediateDir = value; } }
 
         [CommandLineParameter(
-            Name = "reference",
-            IsPath = true,
+            Name = "reference",            
             ValueName = "assemblyNameOrFile",
             Description = "Adds an assembly reference for resolving content importers, processors, and writers.")]
         public List<string> References 
