@@ -27,6 +27,7 @@ namespace MGCB
 
         [CommandLineParameter(
             Name = "@",
+            IsPath = true,
             ValueName = "responseFile",
             Description = "Read a text response file with additional command line options and switches.")]
         // This property only exists for documentation.
@@ -37,15 +38,16 @@ namespace MGCB
             set { throw new InvalidOperationException(); }
         }
 
-
         [CommandLineParameter(
             Name = "outputDir",
+            IsPath = true,
             ValueName = "directoryPath",
             Description = "The directory where all content is written.")]
         public string OutputDir = string.Empty;
 
         [CommandLineParameter(
             Name = "intermediateDir",
+            IsPath = true,
             ValueName = "directoryPath",
             Description = "The directory where all intermediate files are written.")]
         public string IntermediateDir = string.Empty;
@@ -67,6 +69,7 @@ namespace MGCB
 
         [CommandLineParameter(
             Name = "reference",
+            IsPath = true,
             ValueName = "assemblyNameOrFile",
             Description = "Adds an assembly reference for resolving content importers, processors, and writers.")]
         public readonly List<string> References = new List<string>();
@@ -130,6 +133,7 @@ namespace MGCB
 
         [CommandLineParameter(
             Name = "build",
+            IsPath = true,
             ValueName = "sourceFile",
             Description = "Build the content source file using the previously set switches and options.")]
         public void OnBuild(string sourceFile)
@@ -164,6 +168,7 @@ namespace MGCB
 
         [CommandLineParameter(
             Name = "copy",
+            IsPath = true,
             ValueName = "sourceFile",
             Description = "Copy the content source file verbatim to the output directory.")]
         public void OnCopy(string sourceFile)

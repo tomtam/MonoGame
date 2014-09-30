@@ -25,19 +25,115 @@ namespace MGCB
     {
         #region Supporting Types
 
+        public class LineSource
+        {
+            public string File;
+            public int Line;
+
+            public override string ToString()
+            {
+                var fileStr = "[file:null]";
+                if (!string.IsNullOrEmpty(File))
+                    fileStr = string.Concat("[file:", File, "]");
+
+                return string.Concat(fileStr, "[line:", Line, "]");
+            }
+        }
+
+        public class Command
+        {
+            public LineSource Source;
+            public string Text;
+
+            public override string ToString()
+            {
+                return string.Concat(Source.ToString(), " ", Text);
+            }
+        }  
+
         public class Option
         {
             public CommandLineParameterAttribute Attribute;
             public MemberInfo Member;
 
+            public Type DataType
+            {
+                get
+                {
+                    if (IsList(Member))
+                    {
+                        return ListElementType(Member);
+                    }
+
+                    if (Member is MethodInfo)
+                    {
+                        var method = Member as MethodInfo;
+                        var parameters = method.GetParameters();
+
+                        if (parameters.Length == 0)
+                            return null;
+
+                        return parameters[0].ParameterType;
+                    }
+
+                    if (Member is FieldInfo)
+                    {
+                        var field = Member as FieldInfo;
+                        return field.FieldType;
+                    }
+
+                    if (Member is PropertyInfo)
+                    {
+                        var property = Member as PropertyInfo;
+                        return property.PropertyType;
+                    }
+
+                    throw new Exception("Unhandled case");
+                }
+            }
+
             public bool HasValue()
             {
                 if (Member is FieldInfo)
                     return (Member as FieldInfo).FieldType != typeof (bool);
+                
                 if (Member is PropertyInfo)
                     return (Member as PropertyInfo).PropertyType != typeof (bool);
 
-                return (Member as MethodInfo).GetParameters().Length != 0;
+                if (Member is MethodInfo)
+                    return (Member as MethodInfo).GetParameters().Length != 0;
+
+                throw new Exception("Unhandled case");
+            }
+
+            public void Set(object target, object value)
+            {                
+                if (IsList(Member))
+                {                    
+                    GetList(Member, target).Add(value);
+                }
+                else
+                {
+                    if (Member is MethodInfo)
+                    {
+                        var method = Member as MethodInfo;
+                        var parameters = method.GetParameters();
+                        if (parameters.Length == 0)
+                            method.Invoke(target, null);
+                        else
+                            method.Invoke(target, new[] { value });
+                    }
+                    else if (Member is FieldInfo)
+                    {
+                        var field = Member as FieldInfo;
+                        field.SetValue(target, value);
+                    }
+                    else
+                    {
+                        var property = Member as PropertyInfo;
+                        property.SetValue(target, value, null);
+                    }
+                }
             }
         }
 
@@ -213,19 +309,19 @@ namespace MGCB
 
         public bool Parse(IEnumerable<string> args)
         {
-            args = Preprocess(args);
+            var commands = Preprocess(args);
 
             var success = true;            
-            foreach (var arg in args)
+            foreach (var cmd in commands)
             {
-                if (!ParseArgument(arg))
+                if (!ParseCommand(cmd))
                 {
                     success = false;
                     break;
                 }
             }
 
-            var missingRequiredOption = _requiredOptions.FirstOrDefault(field => !IsList(field.Member) || GetList(field.Member).Count == 0);
+            var missingRequiredOption = _requiredOptions.FirstOrDefault(field => !IsList(field.Member) || GetList(field.Member, _optionalOptions).Count == 0);
             if (missingRequiredOption != null)
             {
                 ShowError("Missing argument '{0}'", missingRequiredOption.Attribute.Name);
@@ -235,34 +331,45 @@ namespace MGCB
             return success;
         }
 
-        private IEnumerable<string> Preprocess(IEnumerable<string> args)
+        private IEnumerable<Command> Preprocess(IEnumerable<string> args)
         {
-            var output = new List<string>();
+            var output = new List<Command>();
             var lines = new List<string>(args);
             var ifstack = new Stack<Tuple<string, string>>();
-            var fileStack = new Stack<string>();
+            var sourceStack = new Stack<LineSource>();                        
+            var currentSource = new LineSource();            
 
             while (lines.Count > 0)
             {            
                 var arg = lines[0];
-                lines.RemoveAt(0);
+                lines.RemoveAt(0);                
 
                 if (arg.StartsWith("# Begin:"))
-                {
+                {                    
+                    sourceStack.Push(currentSource);
+
                     var file = arg.Substring(8);
-                    fileStack.Push(file);
+
+                    currentSource = new LineSource()
+                        {
+                            File = file,
+                            Line = 0,
+                        };
+
                     continue;
                 }
 
                 if (arg.StartsWith("# End:"))
                 {
-                    fileStack.Pop();
+                    currentSource = sourceStack.Pop();
+
                     continue;
                 }
 
                 if (arg.StartsWith("$endif"))
                 {
                     ifstack.Pop();
+
                     continue;
                 }
                 
@@ -296,7 +403,7 @@ namespace MGCB
 
                 if (arg.StartsWith("$if"))
                 {
-                    if (fileStack.Count == 0)
+                    if (sourceStack.Count == 0)
                         throw new Exception("$if is invalid outside of a response file.");
 
                     var words = arg.Substring(4).Split('=');
@@ -314,7 +421,7 @@ namespace MGCB
                     var file = arg.Substring(3);
                     var commands = File.ReadAllLines(file);
                     var offset = 0;
-                    lines.Insert(0, string.Format("# Begin:{0} ", file));
+                    lines.Insert(0, string.Concat("# Begin:", file));
                     offset++;
 
                     for (var j = 0; j < commands.Length; j++)
@@ -330,20 +437,33 @@ namespace MGCB
                         offset++;
                     }
 
-                    lines.Insert(offset, string.Format("# End:{0}", file));
+                    lines.Insert(offset, string.Concat("# End:", file));
 
                     continue;
-                }                
-                
-                output.Add(arg);
+                }
+
+                var cmd = new Command()
+                    {
+                        Source = new LineSource()
+                            {
+                                File = currentSource.File,
+                                Line = currentSource.Line,
+                            },
+                        Text = arg,
+                    };
+                output.Add(cmd);
+
+                currentSource.Line++;
             }
 
             return output.ToArray();
         }
 
-        private bool ParseArgument(string arg)
+        private bool ParseCommand(Command cmd)
         {
-            if (arg.StartsWith("/"))
+            var txt = cmd.Text;
+
+            if (txt.StartsWith("/"))
             {
                 // After the first escaped argument we can no
                 // longer read non-escaped arguments.
@@ -353,7 +473,7 @@ namespace MGCB
                 // Parse an optional argument.
                 char[] separators = {':'};
 
-                var split = arg.Substring(1).Split(separators, 2, StringSplitOptions.None);
+                var split = txt.Substring(1).Split(separators, 2, StringSplitOptions.None);
 
                 var name = split[0];
                 var value = (split.Length > 1) ? split[1] : "true";
@@ -365,7 +485,7 @@ namespace MGCB
                     return false;
                 }
 
-                return SetOption(option, value);
+                return SetOption(option, cmd.Source, value);
             }
 
             if (_requiredOptions.Count > 0)
@@ -376,7 +496,7 @@ namespace MGCB
                 if (!IsList(option.Member))
                     _requiredOptions.Dequeue();
 
-                return SetOption(option, arg);
+                return SetOption(option, cmd.Source, cmd.Text);
             }
 
             ShowError("Too many arguments");
@@ -384,43 +504,29 @@ namespace MGCB
         }
 
 
-        bool SetOption(Option option, string value)
+        bool SetOption(Option option, LineSource source, string valueStr)
         {
             try
             {
-                if (IsList(option.Member))
-                {
-                    var listType = ListElementType(option.Member);
-                    GetList(option.Member).Add(ChangeType(value, listType));
-                }
-                else
-                {                    
-                    if (option.Member is MethodInfo)
+                var dataType = option.DataType;                
+
+                if (dataType == typeof(string) && option.Attribute.IsPath)
+                {                   
+                    if (!Path.IsPathRooted(valueStr))
                     {
-                        var method = option.Member as MethodInfo;
-                        var parameters = method.GetParameters();
-                        if (parameters.Length == 0)
-                            method.Invoke(_optionsObject, null);
-                        else
-                            method.Invoke(_optionsObject, new[] {ChangeType(value, parameters[0].ParameterType)});
-                    }
-                    else if (option.Member is FieldInfo)
-                    {
-                        var field = option.Member as FieldInfo;
-                        field.SetValue(_optionsObject, ChangeType(value, field.FieldType));
-                    }
-                    else
-                    {
-                        var property = option.Member as PropertyInfo;
-                        property.SetValue(_optionsObject, ChangeType(value, property.PropertyType), null);
+                        var rootDir = Path.GetDirectoryName(source.File);
+                        valueStr = Path.Combine(rootDir, valueStr);
                     }
                 }
+
+                var value = ChangeType(valueStr, dataType);
+                option.Set(_optionsObject, value);
 
                 return true;
             }
             catch
             {
-                ShowError("Invalid value '{0}' for option '{1}'", value, option.Attribute.Name);
+                ShowError("Invalid value '{0}' for option '{1}'", valueStr, option.Attribute.Name);
                 return false;
             }
         }
@@ -444,7 +550,6 @@ namespace MGCB
         static object ChangeType(string value, Type type)
         {
             var converter = TypeDescriptor.GetConverter(type);
-
             return converter.ConvertFromInvariantString(value);
         }
 
@@ -461,13 +566,13 @@ namespace MGCB
         }
 
 
-        IList GetList(MemberInfo member)
+        static IList GetList(MemberInfo member, object target)
         {
             if (member is PropertyInfo)
-                return (IList)(member as PropertyInfo).GetValue(_optionsObject, null);
+                return (IList)(member as PropertyInfo).GetValue(target, null);
 
             if (member is FieldInfo)
-                return (IList)(member as FieldInfo).GetValue(_optionsObject);
+                return (IList)(member as FieldInfo).GetValue(target);
 
             throw new Exception();
         }
@@ -576,5 +681,7 @@ namespace MGCB
         public string ValueName { get; set; }
 
         public string Description { get; set; }
+
+        public bool IsPath { get; set; }
     }
 }

@@ -30,18 +30,21 @@ namespace MonoGame.Tools.Pipeline
         
         [CommandLineParameter(
             Name = "outputDir",
+            IsPath = true,
             ValueName = "directoryPath",
             Description = "The directory where all content is written.")]
         public string OutputDir { set { _project.OutputDir = value; } }
 
         [CommandLineParameter(
             Name = "intermediateDir",
+            IsPath = true,
             ValueName = "directoryPath",
             Description = "The directory where all intermediate files are written.")]
         public string IntermediateDir { set { _project.IntermediateDir = value; } }
 
         [CommandLineParameter(
             Name = "reference",
+            IsPath = true,
             ValueName = "assemblyNameOrFile",
             Description = "Adds an assembly reference for resolving content importers, processors, and writers.")]
         public List<string> References 
@@ -129,6 +132,7 @@ namespace MonoGame.Tools.Pipeline
 
         [CommandLineParameter(
             Name = "build",
+            IsPath = true,
             ValueName = "sourceFile",
             Description = "Build the content source file using the previously set switches and options.")]
         public void OnBuild(string sourceFile)
@@ -176,6 +180,7 @@ namespace MonoGame.Tools.Pipeline
 
         [CommandLineParameter(
             Name = "copy",
+            IsPath = true,
             ValueName = "sourceFile",
             Description = "Copy the content source file verbatim to the output directory.")]
         public void OnCopy(string sourceFile)
