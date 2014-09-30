@@ -25,6 +25,22 @@ namespace MGCB
     {
         #region Supporting Types
 
+        public class Option
+        {
+            public CommandLineParameterAttribute Attribute;
+            public MemberInfo Member;
+
+            public bool HasValue()
+            {
+                if (Member is FieldInfo)
+                    return (Member as FieldInfo).FieldType != typeof (bool);
+                if (Member is PropertyInfo)
+                    return (Member as PropertyInfo).PropertyType != typeof (bool);
+
+                return (Member as MethodInfo).GetParameters().Length != 0;
+            }
+        }
+
         public class PreprocessorProperty
         {
             public string Name;            
@@ -83,8 +99,8 @@ namespace MGCB
         #endregion
 
         private readonly object _optionsObject;
-        private readonly Queue<MemberInfo> _requiredOptions;
-        private readonly Dictionary<string, MemberInfo> _optionalOptions;
+        private readonly Queue<Option> _requiredOptions;
+        private readonly Dictionary<string, Option> _optionalOptions;
         private readonly List<string> _requiredUsageHelp;
 
         public readonly PreprocessorPropertyCollection _properties;
@@ -95,8 +111,8 @@ namespace MGCB
         public MGBuildParser(object optionsObject)
         {
             _optionsObject = optionsObject;
-            _requiredOptions = new Queue<MemberInfo>();
-            _optionalOptions = new Dictionary<string, MemberInfo>();
+            _requiredOptions = new Queue<Option>();
+            _optionalOptions = new Dictionary<string, Option>();
             _requiredUsageHelp = new List<string>();
 
             _properties = new PreprocessorPropertyCollection();
@@ -106,73 +122,91 @@ namespace MGCB
             // Fields
             foreach (var field in optionsObject.GetType().GetFields())
             {
-                var param = GetAttribute<CommandLineParameterAttribute>(field);
-                if (param == null)
+                var attr = GetAttribute<CommandLineParameterAttribute>(field);
+                if (attr == null)
                     continue;
 
-                CheckReservedPrefixes(param.Name);
-
-                if (param.Required)
+                CheckReservedPrefixes(attr.Name);
+                
+                var option = new Option()
                 {
-                    // Record a required option.
-                    _requiredOptions.Enqueue(field);
+                    Attribute = attr,
+                    Member = field,
+                };
 
-                    _requiredUsageHelp.Add(string.Format("<{0}>", param.Name));
+                if (attr.Required)
+                {
+                    // Record a required option.                    
+                    _requiredOptions.Enqueue(option);
+
+                    _requiredUsageHelp.Add(string.Format("<{0}>", attr.Name));
                 }
                 else
                 {
                     // Record an optional option.
-                    _optionalOptions.Add(param.Name.ToLowerInvariant(), field);
+                    _optionalOptions.Add(attr.Name.ToLowerInvariant(), option);
                 }
             }
 
             // Properties
             foreach (var property in optionsObject.GetType().GetProperties())
             {
-                var param = GetAttribute<CommandLineParameterAttribute>(property);
-                if (param == null)
+                var attr = GetAttribute<CommandLineParameterAttribute>(property);
+                if (attr == null)
                     continue;
 
-                CheckReservedPrefixes(param.Name);
+                CheckReservedPrefixes(attr.Name);
 
-                if (param.Required)
+                var option = new Option()
+                {
+                    Attribute = attr,
+                    Member = property,
+                };
+
+                if (attr.Required)
                 {
                     // Record a required option.
-                    _requiredOptions.Enqueue(property);
+                    _requiredOptions.Enqueue(option);
 
-                    _requiredUsageHelp.Add(string.Format("<{0}>", param.Name));
+                    _requiredUsageHelp.Add(string.Format("<{0}>", attr.Name));
                 }
                 else
                 {
                     // Record an optional option.
-                    _optionalOptions.Add(param.Name.ToLowerInvariant(), property);
+                    _optionalOptions.Add(attr.Name.ToLowerInvariant(), option);
                 }
             }
 
             // Methods
             foreach (var method in optionsObject.GetType().GetMethods())
             {
-                var param = GetAttribute<CommandLineParameterAttribute>(method);
-                if (param == null)
+                var attr = GetAttribute<CommandLineParameterAttribute>(method);
+                if (attr == null)
                     continue;
 
-                CheckReservedPrefixes(param.Name);
+                CheckReservedPrefixes(attr.Name);
 
                 // Only accept methods that take less than 1 parameter.
                 if (method.GetParameters().Length > 1)
                     throw new NotSupportedException("Methods must have one or zero parameters.");
 
-                if (param.Required)
+                var option = new Option()
+                {
+                    Attribute = attr,
+                    Member = method,
+                };
+
+                if (attr.Required)
                 {
                     // Record a required option.
-                    _requiredOptions.Enqueue(method);
+                    _requiredOptions.Enqueue(option);
 
-                    _requiredUsageHelp.Add(string.Format("<{0}>", param.Name));
+                    _requiredUsageHelp.Add(string.Format("<{0}>", attr.Name));
                 }
                 else
                 {
                     // Record an optional option.
-                    _optionalOptions.Add(param.Name.ToLowerInvariant(), method);
+                    _optionalOptions.Add(attr.Name.ToLowerInvariant(), option);
                 }
             }
         }        
@@ -191,10 +225,10 @@ namespace MGCB
                 }
             }
 
-            var missingRequiredOption = _requiredOptions.FirstOrDefault(field => !IsList(field) || GetList(field).Count == 0);
+            var missingRequiredOption = _requiredOptions.FirstOrDefault(field => !IsList(field.Member) || GetList(field.Member).Count == 0);
             if (missingRequiredOption != null)
             {
-                ShowError("Missing argument '{0}'", GetAttribute<CommandLineParameterAttribute>(missingRequiredOption).Name);
+                ShowError("Missing argument '{0}'", missingRequiredOption.Attribute.Name);
                 return false;
             }
 
@@ -324,26 +358,25 @@ namespace MGCB
                 var name = split[0];
                 var value = (split.Length > 1) ? split[1] : "true";
 
-                MemberInfo member;
-
-                if (!_optionalOptions.TryGetValue(name.ToLowerInvariant(), out member))
+                Option option;
+                if (!_optionalOptions.TryGetValue(name.ToLowerInvariant(), out option))
                 {
                     ShowError("Unknown option '{0}'", name);
                     return false;
                 }
 
-                return SetOption(member, value);
+                return SetOption(option, value);
             }
 
             if (_requiredOptions.Count > 0)
             {
                 // Parse the next non escaped argument.
-                var field = _requiredOptions.Peek();
+                var option = _requiredOptions.Peek();
 
-                if (!IsList(field))
+                if (!IsList(option.Member))
                     _requiredOptions.Dequeue();
 
-                return SetOption(field, arg);
+                return SetOption(option, arg);
             }
 
             ShowError("Too many arguments");
@@ -351,35 +384,34 @@ namespace MGCB
         }
 
 
-        bool SetOption(MemberInfo member, string value)
+        bool SetOption(Option option, string value)
         {
             try
             {
-                if (IsList(member))
+                if (IsList(option.Member))
                 {
-                    // Append this value to a list of options.
-                    GetList(member).Add(ChangeType(value, ListElementType(member)));
+                    var listType = ListElementType(option.Member);
+                    GetList(option.Member).Add(ChangeType(value, listType));
                 }
                 else
-                {
-                    // Set the value of a single option.
-                    if (member is MethodInfo)
+                {                    
+                    if (option.Member is MethodInfo)
                     {
-                        var method = member as MethodInfo;
+                        var method = option.Member as MethodInfo;
                         var parameters = method.GetParameters();
                         if (parameters.Length == 0)
                             method.Invoke(_optionsObject, null);
                         else
-                            method.Invoke(_optionsObject, new[] { ChangeType(value, parameters[0].ParameterType) });
+                            method.Invoke(_optionsObject, new[] {ChangeType(value, parameters[0].ParameterType)});
                     }
-                    else if (member is FieldInfo)
+                    else if (option.Member is FieldInfo)
                     {
-                        var field = member as FieldInfo;
+                        var field = option.Member as FieldInfo;
                         field.SetValue(_optionsObject, ChangeType(value, field.FieldType));
                     }
-                    else 
+                    else
                     {
-                        var property = member as PropertyInfo;
+                        var property = option.Member as PropertyInfo;
                         property.SetValue(_optionsObject, ChangeType(value, property.PropertyType), null);
                     }
                 }
@@ -388,7 +420,7 @@ namespace MGCB
             }
             catch
             {
-                ShowError("Invalid value '{0}' for option '{1}'", value, GetAttribute<CommandLineParameterAttribute>(member).Name);
+                ShowError("Invalid value '{0}' for option '{1}'", value, option.Attribute.Name);
                 return false;
             }
         }
@@ -507,17 +539,16 @@ namespace MGCB
 
                 foreach (var pair in _optionalOptions)
                 {
-                    var field = pair.Value as FieldInfo;
-                    var method = pair.Value as MethodInfo;
-                    var param = GetAttribute<CommandLineParameterAttribute>(pair.Value);
+                    var option = pair.Value as Option;
 
-                    var hasValue = (field != null && field.FieldType != typeof (bool)) ||
-                                   (method != null && method.GetParameters().Length != 0);
+                    var attr = option.Attribute;
+
+                    var hasValue = option.HasValue();                    
 
                     if (hasValue)
-                        Console.Error.WriteLine("  /{0}:<{1}>\n    {2}\n", param.Name, param.ValueName, param.Description);
+                        Console.Error.WriteLine("  /{0}:<{1}>\n    {2}\n", attr.Name, attr.ValueName, attr.Description);
                     else
-                        Console.Error.WriteLine("  /{0}\n    {1}\n", param.Name, param.Description);
+                        Console.Error.WriteLine("  /{0}\n    {1}\n", attr.Name, attr.Description);
                 }
             }
         }
@@ -544,6 +575,6 @@ namespace MGCB
 
         public string ValueName { get; set; }
 
-        public string Description { get; set; }        
+        public string Description { get; set; }
     }
 }
