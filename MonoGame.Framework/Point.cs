@@ -23,9 +23,15 @@ namespace Microsoft.Xna.Framework
 
         #region Public Fields
 
+        /// <summary>
+        /// The x coordinate of this <see cref="Point"/>.
+        /// </summary>
         [DataMember]
         public int X;
 
+        /// <summary>
+        /// The y coordinate of this <see cref="Point"/>.
+        /// </summary>
         [DataMember]
         public int Y;
 
@@ -61,7 +67,7 @@ namespace Microsoft.Xna.Framework
         #region Constructors
 
         /// <summary>
-        /// Creates a new instance of <see cref="Point"/> struct.
+        /// Creates a new instance of <see cref="Point"/> struct, with the specified position.
         /// </summary>
         /// <param name="x">The x coordinate in 2d-space.</param>
         /// <param name="y">The y coordinate in 2d-space.</param>
@@ -146,6 +152,16 @@ namespace Microsoft.Xna.Framework
         #region Public methods
 
         /// <summary>
+        /// Compares whether current instance is equal to specified <see cref="Object"/>.
+        /// </summary>
+        /// <param name="obj">The <see cref="Object"/> to compare.</param>
+        /// <returns><c>true</c> if the instances are equal; <c>false</c> otherwise.</returns>
+        public override bool Equals(object obj)
+        {
+            return (obj is Point) && Equals((Point)obj);
+        }
+
+        /// <summary>
         /// Compares whether current instance is equal to specified <see cref="Point"/>.
         /// </summary>
         /// <param name="other">The <see cref="Point"/> to compare.</param>
@@ -153,16 +169,6 @@ namespace Microsoft.Xna.Framework
         public bool Equals(Point other)
         {
             return ((X == other.X) && (Y == other.Y));
-        }
-
-        /// <summary>
-        /// Compares whether current instance is equal to specified object.
-        /// </summary>
-        /// <param name="obj">The <see cref="Point"/> to compare.</param>
-        /// <returns><c>true</c> if the instances are equal; <c>false</c> otherwise.</returns>
-        public override bool Equals(object obj)
-        {
-            return (obj is Point) ? Equals((Point)obj) : false;
         }
 
         /// <summary>
@@ -176,12 +182,12 @@ namespace Microsoft.Xna.Framework
 
         /// <summary>
         /// Returns a <see cref="String"/> representation of this <see cref="Point"/> in the format:
-        /// {X:[x] Y:[y]}
+        /// {X:[<see cref="X"/>] Y:[<see cref="Y"/>]}
         /// </summary>
         /// <returns><see cref="String"/> representation of this <see cref="Point"/>.</returns>
         public override string ToString()
         {
-            return string.Format("{{X:{0} Y:{1}}}", X, Y);
+            return "{{X:" + X + " Y:" + Y + "}}";
         }
 
         /// <summary>

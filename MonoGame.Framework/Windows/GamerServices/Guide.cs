@@ -91,7 +91,7 @@ namespace Microsoft.Xna.Framework.GamerServices
         static Guide()
         {
 #if WINDOWS_STOREAPP
-            _dispatcher = Windows.UI.Core.CoreWindow.GetForCurrentThread().Dispatcher;
+            _dispatcher = Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher;
 
 
             var licenseInformation = CurrentApp.LicenseInformation;
@@ -445,7 +445,11 @@ namespace Microsoft.Xna.Framework.GamerServices
 		{ 
 			get
 			{
+#if WINDOWS_PHONE
+				return MsXna_Guide.IsVisible;
+#else
 				return isVisible;
+#endif
 			}
 			set
 			{

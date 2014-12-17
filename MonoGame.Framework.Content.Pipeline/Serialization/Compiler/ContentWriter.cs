@@ -41,7 +41,7 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Serialization.Compiler
         // This array must remain in sync with TargetPlatform
         static char[] targetPlatformIdentifiers = new[]
         {
-            'w', // Windows
+            'w', // Windows (DirectX)
             'x', // Xbox360
             'm', // WindowsPhone
             'i', // iOS
@@ -55,6 +55,7 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Serialization.Compiler
             'M', // WindowsPhone8
             'r', // RaspberryPi
             'P', // PlayStation4
+            'g', // Windows (OpenGL)
         };
 
         /// <summary>
@@ -188,8 +189,11 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Serialization.Compiler
         /// </summary>
         void WriteSharedResources()
         {
-            foreach (var resource in sharedResources)
+            for (int i = 0; i < sharedResources.Count; i++)
+            {
+                var resource = sharedResources[i];
                 WriteObject<object>(resource);
+            }
         }
 
         /// <summary>

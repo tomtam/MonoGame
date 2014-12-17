@@ -1,4 +1,6 @@
-﻿using Microsoft.Xna.Framework.Graphics;
+﻿using System.Diagnostics;
+using System.Threading;
+using Microsoft.Xna.Framework.Graphics;
 using SharpDX;
 using SharpDX.MediaFoundation;
 using SharpDX.Win32;
@@ -132,6 +134,28 @@ namespace Microsoft.Xna.Framework.Media
             return texture;
         }
 
+        private void PlatformGetState(ref MediaState result)
+        {
+            if (_clock != null)
+            {
+                ClockState state;
+                _clock.GetState(0, out state);
+
+                switch (state)
+                {
+                    case ClockState.Running:
+                        result = MediaState.Playing;
+                        return;
+
+                    case ClockState.Paused:
+                        result = MediaState.Paused;
+                        return;
+                }
+            }
+
+            result = MediaState.Stopped;
+        }
+
         private void PlatformPause()
         {
             _session.Pause();
@@ -150,21 +174,9 @@ namespace Microsoft.Xna.Framework.Media
             // Set the new song.
             _session.SetTopology(0, _currentVideo.Topology);
 
-            // Get the volume interface.
-            IntPtr volumeObj;
-
-            try
-            {
-                MediaFactory.GetService(_session, MRPolicyVolumeService, SimpleAudioVolumeGuid, out volumeObj);
-
-                _volumeController = CppObject.FromPointer<SimpleAudioVolume>(volumeObj);
-                _volumeController.Mute = IsMuted;
-                _volumeController.MasterVolume = _volume;
-            }
-            catch
-            {
-                // Do we support videos without audio tracks?
-            }
+            _volumeController = CppObject.FromPointer<SimpleAudioVolume>(GetVolumeObj(_session));
+            _volumeController.Mute = IsMuted;
+            _volumeController.MasterVolume = _volume;
 
             // Get the clock.
             _clock = _session.Clock.QueryInterface<PresentationClock>();
@@ -183,6 +195,38 @@ namespace Microsoft.Xna.Framework.Media
                     Value = (long)0,
                 };
             _session.Start(null, varStart);
+        }
+
+        internal static IntPtr GetVolumeObj(MediaSession session)
+        {
+            // Get the volume interface - shared between MediaPlayer and VideoPlayer
+            const int retries = 10;
+            const int sleepTimeFactor = 50;
+
+            var volumeObj = (IntPtr)0;
+
+            //See https://github.com/mono/MonoGame/issues/2620
+            //MediaFactory.GetService throws a SharpDX exception for unknown reasons. it appears retrying will solve the problem but there
+            //is no specific number of times, nor pause that works. So we will retry N times with an increasing Sleep between each one
+            //before finally throwing the error we saw in the first place.
+            for (int i = 0; i < retries; i++)
+            {
+                try
+                {
+                    MediaFactory.GetService(session, MRPolicyVolumeService, SimpleAudioVolumeGuid, out volumeObj);
+                    break;
+                }
+                catch (SharpDXException)
+                {
+                    if (i == retries - 1)
+                    {
+                        throw;
+                    }
+                    Debug.WriteLine("MediaFactory.GetService failed({0}) sleeping for {1} ms", i + 1, i*sleepTimeFactor);
+                    Thread.Sleep(i*sleepTimeFactor); //Sleep for longer and longer times
+                }
+            }
+            return volumeObj;
         }
 
         private void PlatformResume()
@@ -211,6 +255,9 @@ namespace Microsoft.Xna.Framework.Media
 
         private void PlatformSetIsMuted()
         {
+            if (_volumeController == null)
+                return;
+
             _volumeController.Mute = _isMuted;
         }
 
@@ -219,7 +266,7 @@ namespace Microsoft.Xna.Framework.Media
             if (_state == MediaState.Stopped)
                 return TimeSpan.Zero;
 
-            return TimeSpan.FromSeconds((double)_clock.Time / 10000000);
+            return TimeSpan.FromTicks(_clock.Time);
         }
 
         private void PlatformSetPlayPosition(TimeSpan pos)
@@ -245,17 +292,13 @@ namespace Microsoft.Xna.Framework.Media
                 _session.Pause();
         }
 
-        private void PlatformDispose()
+        private void PlatformDispose(bool disposing)
         {
             if (_textureBuffer != null)
             {
                 _textureBuffer.Dispose();
                 _textureBuffer = null;
             }
-        }
-
-        private void PlatformDispose(bool disposing)
-        {
         }
     }
 }
