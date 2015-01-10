@@ -109,8 +109,9 @@ namespace MonoGame.Tools.Pipeline
             if (!AskSaveProject())
                 return;
 
-           // Ask user to choose a location on disk for the new project.
-            // Note: It is impossible to have a project without a project root directory, hence it has to be saved immediately.
+            // A project needs a root directory or it is impossible to resolve relative paths.
+            // So we need the user to choose that location even though the project has not
+            // yet actually been saved to disk.
             var projectFilePath = Environment.CurrentDirectory;
             if (!_view.AskSaveName(ref projectFilePath, "New Project"))
                 return;
@@ -128,8 +129,7 @@ namespace MonoGame.Tools.Pipeline
             // Save the new project.
             _project.OriginalPath = projectFilePath;
             ProjectOpen = true;
-            History.Default.AddProjectHistory(projectFilePath);
-            History.Default.Save();
+            ProjectDirty = true;
 
             UpdateTree();
 
@@ -165,9 +165,7 @@ namespace MonoGame.Tools.Pipeline
                 ResolveTypes();                
                 
                 ProjectOpen = true;
-                ProjectDirty = true;
-                History.Default.AddProjectHistory(projectFilePath);
-                History.Default.Save();
+                ProjectDirty = true;                
             }
 #if SHIPPING
             catch (Exception e)
@@ -219,7 +217,9 @@ namespace MonoGame.Tools.Pipeline
 
                 ProjectOpen = true;
                 ProjectDirty = false;
+
                 History.Default.AddProjectHistory(projectFilePath);
+                History.Default.StartupProject = projectFilePath;
                 History.Default.Save();
             }
 #if SHIPPING
@@ -238,6 +238,9 @@ namespace MonoGame.Tools.Pipeline
 
         public void CloseProject()
         {
+            if (!ProjectOpen)
+                return;
+
             // Make sure we give the user a chance to
             // save the project if they need too.
             if (!AskSaveProject())
@@ -248,6 +251,9 @@ namespace MonoGame.Tools.Pipeline
             _project = null;
             _actionStack.Clear();
             _view.OutputClear();
+
+            History.Default.StartupProject = null;
+            History.Default.Save();
 
             Selection.Clear(this);
             UpdateTree();
@@ -268,7 +274,14 @@ namespace MonoGame.Tools.Pipeline
             // Do the save.
             ProjectDirty = false;
             var parser = new PipelineProjectParser(this, _project);
-            parser.SaveProject();            
+            parser.SaveProject();
+
+            // Note: This is where a project loaded via 'new project' or 'import project' 
+            //       get recorded into history because up until this point they did not
+            //       exist as files on disk.
+            History.Default.AddProjectHistory(_project.OriginalPath);
+            History.Default.StartupProject = _project.OriginalPath;
+            History.Default.Save();
 
             return true;
         }
@@ -593,19 +606,12 @@ namespace MonoGame.Tools.Pipeline
             }
         }
 
-        public string GetFullPath(string filePath)
+        public string GetFullPath(string path)
         {
             if (_project == null)
-                return filePath;
+                return path;
 
-            filePath = filePath.Replace("/", "\\");
-            if (filePath.StartsWith("\\"))
-                filePath = filePath.Substring(2);
-
-            if (Path.IsPathRooted(filePath))
-                return filePath;
-
-            return _project.Location + "\\" + filePath;
+            return PipelineUtil.GetFullPath(path, _project.Location);
         }
     }
 }

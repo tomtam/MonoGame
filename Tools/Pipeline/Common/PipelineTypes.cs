@@ -33,7 +33,7 @@ namespace MonoGame.Tools.Pipeline
 
         public override int GetHashCode()
         {
-            return TypeName.GetHashCode();
+            return TypeName == null ? 0 : TypeName.GetHashCode();
         }
 
         public override bool Equals(object obj)
@@ -41,8 +41,11 @@ namespace MonoGame.Tools.Pipeline
             var other = obj as ImporterTypeDescription;
             if (other == null)
                 return false;
+            
+            if (string.IsNullOrEmpty(other.TypeName) != string.IsNullOrEmpty(TypeName))
+                return false;
 
-            return this.TypeName.Equals(other.TypeName);
+            return TypeName.Equals(other.TypeName);
         }
     };
 
@@ -135,6 +138,7 @@ namespace MonoGame.Tools.Pipeline
         public string DisplayName;
         public ProcessorPropertyCollection Properties;
         public Type InputType;
+        public Type OutputType;
 
         public override string ToString()
         {
@@ -142,7 +146,7 @@ namespace MonoGame.Tools.Pipeline
         }
     };
 
-    internal class PipelineTypes
+    public class PipelineTypes
     {
         [DebuggerDisplay("ImporterInfo: {Type.Name}")]
         private struct ImporterInfo
@@ -287,12 +291,14 @@ namespace MonoGame.Tools.Pipeline
                 }
 
                 var inputType = (obj as IContentProcessor).InputType;
+                var outputType = (obj as IContentProcessor).OutputType;
                 var desc = new ProcessorTypeDescription()
                 {
                     TypeName = item.Type.Name,
                     DisplayName = item.Attribute.DisplayName,
                     Properties = new ProcessorTypeDescription.ProcessorPropertyCollection(properties),
                     InputType = inputType,
+                    OutputType = outputType,
                 };
                 if (string.IsNullOrEmpty(desc.DisplayName))
                     desc.DisplayName = desc.TypeName;
