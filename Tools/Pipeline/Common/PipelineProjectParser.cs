@@ -157,7 +157,14 @@ namespace MonoGame.Tools.Pipeline
         private void OnCopy(string sourceFile)
         {
             // Make sure the source file is relative to the project.
-            var projectDir = ProjectDirectory + "\\";
+            var projectDir = ProjectDirectory;
+
+#if WINDOWS
+            projectDir += "\\";
+#else
+            projectDir += "/";
+#endif
+
             sourceFile = PathHelper.GetRelativePath(projectDir, sourceFile);
 
             // Remove duplicates... keep this new one.
@@ -170,7 +177,8 @@ namespace MonoGame.Tools.Pipeline
             {
                 BuildAction = BuildAction.Copy,
                 OriginalPath = sourceFile,
-                ProcessorParams = new OpaqueDataDictionary()
+                ProcessorParams = new OpaqueDataDictionary(),
+                Exists = File.Exists(projectDir + sourceFile)
             };
             _project.ContentItems.Add(item);
 
@@ -187,7 +195,7 @@ namespace MonoGame.Tools.Pipeline
         {
             _observer = observer;
             _project = project;
-        }
+        }        
 
         public ParseResult OpenProject(string projectFilePath, MGBuildParser.ErrorCallback errorCallback)
         {
@@ -315,7 +323,7 @@ namespace MonoGame.Tools.Pipeline
                                 if (value != null)
                                 {
                                     var converter = PipelineTypes.FindConverter(value.GetType());
-                                    var valueStr = converter.ConvertTo(value, typeof(string));
+                                    var valueStr = converter.ConvertTo(null, CultureInfo.InvariantCulture, value, typeof(string));
                                     line = string.Format(lineFormat, "processorParam", string.Format(processorParamFormat, j.Name, valueStr));
                                     io.WriteLine(line);
                                 }
