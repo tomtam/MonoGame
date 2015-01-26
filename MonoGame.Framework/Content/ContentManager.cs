@@ -46,6 +46,7 @@ using System.Text;
 using Lz4;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Utilities;
 using Path = System.IO.Path;
 using System.Diagnostics;
 
@@ -254,8 +255,14 @@ namespace Microsoft.Xna.Framework.Content
 			try
             {
                 string assetPath = Path.Combine(RootDirectory, assetName) + ".xnb";
-                stream = TitleContainer.OpenStream(assetPath);
 
+                // For Win8 metro applications you do not have access to Environment.CurrentDirectory nor does Path.DirectorySeparatorChar exist.
+#if !WINRT
+                if (Path.IsPathRooted(assetPath))
+                    assetPath = FileHelpers.GetRelativePath(Environment.CurrentDirectory + Path.DirectorySeparatorChar, assetPath);
+#endif
+                
+                stream = TitleContainer.OpenStream(assetPath);
 #if ANDROID
                 // Read the asset into memory in one go. This results in a ~50% reduction
                 // in load times on Android due to slow Android asset streams.
