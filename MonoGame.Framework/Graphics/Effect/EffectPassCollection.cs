@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Microsoft.Xna.Framework.Graphics
 {
@@ -44,11 +45,11 @@ namespace Microsoft.Xna.Framework.Graphics
             get { return _passes.Length; }
         }
 
-        public PassEnumerator GetEnumerator()
+        public Enumerator GetEnumerator()
         {
-            return new PassEnumerator(this);
+            return new Enumerator(_passes);
         }
-
+            
         IEnumerator<EffectPass> IEnumerable<EffectPass>.GetEnumerator()
         {
             return GetEnumerator();
@@ -59,40 +60,56 @@ namespace Microsoft.Xna.Framework.Graphics
             return GetEnumerator();
         }
 
-        public struct PassEnumerator : IEnumerator<EffectPass>
+        public struct Enumerator : IEnumerator<EffectPass>
         {
-            private readonly EffectPass[] _items;
+            private readonly EffectPass[] _array;
             private int _index;
+            private EffectPass _current;
 
-            public PassEnumerator(EffectPassCollection collection)
+            internal Enumerator(EffectPass[] array)
             {
-                _items = collection._passes;
-                _index = -1;
-            }
-
-            public EffectPass Current
-            {
-                get { return _items[_index]; }
-            }
-
-            public void Dispose()
-            {
-            }
-
-            object System.Collections.IEnumerator.Current
-            {
-                get { return Current; }
+                _array = array;
+                _index = 0;
+                _current = null;
             }
 
             public bool MoveNext()
             {
-                _index++;
-                return _index < _items.Length;
+                if (_index < _array.Length)
+                {
+                    _current = _array[_index];
+                    _index++;
+                    return true;
+                }
+                _index = _array.Length + 1;
+                _current = null;
+                return false;
             }
 
-            public void Reset()
+            public EffectPass Current
             {
-                _index = -1;
+                get { return _current; }
+            }
+
+            public void Dispose()
+            {
+
+            }
+
+            object System.Collections.IEnumerator.Current
+            {
+                get
+                {
+                    if (_index == _array.Length + 1)
+                        throw new InvalidOperationException();
+                    return Current;
+                }
+            }
+
+            void System.Collections.IEnumerator.Reset()
+            {
+                _index = 0;
+                _current = null;
             }
         }
     }

@@ -73,6 +73,7 @@ namespace Microsoft.Xna.Framework
         private Rectangle clientBounds;
         private Rectangle targetBounds;
         private bool updateClientBounds;
+        private int updateborder = 0;
         bool disposed;
 
         #region Internal Properties
@@ -121,7 +122,13 @@ namespace Microsoft.Xna.Framework
         {
             get { return DisplayOrientation.LandscapeLeft; }
         }
-
+#if DESKTOPGL
+        public override Microsoft.Xna.Framework.Point Position
+        {
+            get { return new Microsoft.Xna.Framework.Point(window.Location.X,window.Location.Y); }
+            set { window.Location = new System.Drawing.Point(value.X,value.Y); }
+        }
+#endif
         protected internal override void SetSupportedOrientations(DisplayOrientation orientations)
         {
             // Do nothing.  Desktop platforms don't do orientation.
@@ -173,7 +180,7 @@ namespace Microsoft.Xna.Framework
             Keys xnaKey = KeyboardUtil.ToXna(e.Key);
             if (keys.Contains(xnaKey)) keys.Remove(xnaKey);
         }
-
+        
         private void Keyboard_KeyDown(object sender, OpenTK.Input.KeyboardKeyEventArgs e)
         {
             if (_allowAltF4 && e.Key == OpenTK.Input.Key.F4 && keys.Contains(Keys.LeftAlt))
@@ -184,7 +191,7 @@ namespace Microsoft.Xna.Framework
             Keys xnaKey = KeyboardUtil.ToXna(e.Key);
             if (!keys.Contains(xnaKey)) keys.Add(xnaKey);
         }
-        
+
         #endregion
 
         private void OnResize(object sender, EventArgs e)
@@ -199,7 +206,7 @@ namespace Microsoft.Xna.Framework
 
             // If window size is zero, leave bounds unchanged
             // OpenTK appears to set the window client size to 1x1 when minimizing
-            if (winWidth <= 1 || winHeight <= 1)
+            if (winWidth <= 1 || winHeight <= 1) 
                 return;
 
             //If we've already got a pending change, do nothing
@@ -218,16 +225,37 @@ namespace Microsoft.Xna.Framework
 
         internal void ProcessEvents()
         {
+            UpdateBorder();
             Window.ProcessEvents();
             UpdateWindowState();
             HandleInput();
         }
 
+        private void UpdateBorder()
+        {
+            if (updateborder == 1)
+            {
+                WindowBorder desired;
+                if (_isBorderless)
+                    desired = WindowBorder.Hidden;
+                else
+                    desired = _isResizable ? WindowBorder.Resizable : WindowBorder.Fixed;
+            
+                if (desired != window.WindowBorder && window.WindowState != WindowState.Fullscreen)
+                    window.WindowBorder = desired;
+            }
+
+            if(updateborder > 0)
+                updateborder--;
+        }
+
         private void UpdateWindowState()
         {
             // we should wait until window's not fullscreen to resize
+
             if (updateClientBounds)
             {
+                window.WindowBorder = WindowBorder.Resizable;
                 updateClientBounds = false;
                 window.ClientRectangle = new System.Drawing.Rectangle(targetBounds.X,
                                      targetBounds.Y, targetBounds.Width, targetBounds.Height);
@@ -241,30 +269,14 @@ namespace Microsoft.Xna.Framework
                     windowState = window.WindowState; // maximize->normal and normal->maximize are usually set from the outside
                 else
                     window.WindowState = windowState; // usually fullscreen-stuff is set from the code
-                
-                // fixes issue on linux (and windows?) that AllowUserResizing is not set any more when exiting fullscreen mode
-                WindowBorder desired;
-                if (_isBorderless)
-                    desired = WindowBorder.Hidden;
-                else
-#if LINUX
-                    // OpenTK on Linux currently does not allow the window to be resized if the border is fixed.
-                    // We get the resize event for the intended size, then immediately get a resize event for the original size.
-                    // This was preventing GraphicsDeviceManager.PreferredBackBufferWidth and PreferredBackBufferHeight from
-                    // having any effect.
-                    // http://www.opentk.com/node/3132
-                    desired = WindowBorder.Resizable;
-#else
-                    desired = _isResizable ? WindowBorder.Resizable : WindowBorder.Fixed;
-#endif
-                if (desired != window.WindowBorder && window.WindowState != WindowState.Fullscreen)
-                    window.WindowBorder = desired;
+
+                // we need to create a small delay between resizing the window
+                // and changing the border to avoid OpenTK Linux bug
+                updateborder = 2;
 
                 var context = GraphicsContext.CurrentContext;
                 if (context != null)
-                {
                     context.Update(window.WindowInfo);
-                }
             }
         }
 
@@ -276,7 +288,7 @@ namespace Microsoft.Xna.Framework
             Keyboard.SetKeys(keys);
         }
 
-#if WINDOWS
+#if DESKTOPGL
         private void OnMouseEnter(object sender, EventArgs e)
         {
             _isMouseInBounds = true;
@@ -307,14 +319,12 @@ namespace Microsoft.Xna.Framework
             GraphicsContext.ShareContexts = true;
 
             window = new NativeWindow();
+            window.WindowBorder = WindowBorder.Resizable;
             window.Closing += new EventHandler<CancelEventArgs>(OpenTkGameWindow_Closing);
             window.Resize += OnResize;
             window.KeyDown += new EventHandler<OpenTK.Input.KeyboardKeyEventArgs>(Keyboard_KeyDown);
             window.KeyUp += new EventHandler<OpenTK.Input.KeyboardKeyEventArgs>(Keyboard_KeyUp);
-#if LINUX
-            window.WindowBorder = WindowBorder.Resizable;
-#endif
-#if WINDOWS
+#if DESKTOPGL
             window.MouseEnter += OnMouseEnter;
             window.MouseLeave += OnMouseLeave;
 #endif
@@ -338,7 +348,7 @@ namespace Microsoft.Xna.Framework
 
             // mouse
             // TODO review this when opentk 1.1 is released
-#if WINDOWS || LINUX || ANGLE
+#if DESKTOPGL || ANGLE
             Mouse.setWindows(this);
 #else
             Mouse.UpdateMouseInfo(window.Mouse);

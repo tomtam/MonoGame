@@ -69,6 +69,8 @@ namespace MonoGame.Tools.Pipeline
             Description = "The optional build config string from the build system.")]
         public string Config { set { _project.Config = value; } }
 
+        #pragma warning disable 414
+
         // Allow a MGCB file containing the /rebuild parameter to be imported without error
         [CommandLineParameter(
             Name = "rebuild",
@@ -84,6 +86,8 @@ namespace MonoGame.Tools.Pipeline
             Description = "Removes intermediate and output files.")]
         public bool Clean { set { _clean = value; } }
         private bool _clean;
+
+        #pragma warning restore 414
 
         [CommandLineParameter(
             Name = "compress",
@@ -140,7 +144,8 @@ namespace MonoGame.Tools.Pipeline
         public bool AddContent(string sourceFile, bool skipDuplicates)
         {
             // Make sure the source file is relative to the project.
-            var projectDir = ProjectDirectory + "\\";
+            var projectDir = ProjectDirectory + Path.DirectorySeparatorChar;
+
             sourceFile = PathHelper.GetRelativePath(projectDir, sourceFile);
 
             // Do we have a duplicate?
@@ -162,7 +167,8 @@ namespace MonoGame.Tools.Pipeline
                 OriginalPath = sourceFile,
                 ImporterName = Importer,
                 ProcessorName = Processor,
-                ProcessorParams = new OpaqueDataDictionary()
+                ProcessorParams = new OpaqueDataDictionary(),
+                Exists = File.Exists(projectDir + sourceFile)
             };
             _project.ContentItems.Add(item);
 
@@ -182,7 +188,8 @@ namespace MonoGame.Tools.Pipeline
         public void OnCopy(string sourceFile)
         {
             // Make sure the source file is relative to the project.
-            var projectDir = ProjectDirectory + "\\";
+            var projectDir = ProjectDirectory + Path.DirectorySeparatorChar;
+
             sourceFile = PathHelper.GetRelativePath(projectDir, sourceFile);
 
             // Remove duplicates... keep this new one.
@@ -195,7 +202,8 @@ namespace MonoGame.Tools.Pipeline
             {
                 BuildAction = BuildAction.Copy,
                 OriginalPath = sourceFile,
-                ProcessorParams = new OpaqueDataDictionary()
+                ProcessorParams = new OpaqueDataDictionary(),
+                Exists = File.Exists(projectDir + sourceFile)
             };
             _project.ContentItems.Add(item);
 
