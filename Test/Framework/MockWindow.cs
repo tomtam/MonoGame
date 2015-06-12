@@ -56,6 +56,11 @@ namespace MonoGame.Tests.Framework
         {
             throw new NotImplementedException();
         }
+
+        public override void SetClientSize(int width, int height)
+        {
+            throw new NotImplementedException();
+        }
     }
 
 #endif // !MONOMAC
