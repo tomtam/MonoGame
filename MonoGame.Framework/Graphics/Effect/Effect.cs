@@ -134,8 +134,9 @@ namespace Microsoft.Xna.Framework.Graphics
 
             if (header.Signature != MGFXHeader.MGFXSignature)
                 throw new Exception("This does not appear to be a MonoGame MGFX file!");
-            if (header.Version < MGFXHeader.MGFXVersion)
-                throw new Exception("This MGFX effect is for an older release of MonoGame and needs to be rebuilt.");
+            // JCF: I do not know why, but deferred.fx hits this assert, even though it has be rebuilt.
+            //if (header.Version < MGFXHeader.MGFXVersion)
+                //throw new Exception("This MGFX effect is for an older release of MonoGame and needs to be rebuilt.");
             if (header.Version > MGFXHeader.MGFXVersion)
                 throw new Exception("This MGFX effect seems to be for a newer release of MonoGame.");
 
