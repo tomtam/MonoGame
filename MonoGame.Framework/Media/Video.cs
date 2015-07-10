@@ -61,7 +61,7 @@ namespace Microsoft.Xna.Framework.Media
             Duration = TimeSpan.FromMilliseconds(durationMS);
         }
 
-        internal Video(string fileName)
+        public Video(string fileName)
         {
             FileName = fileName;
 
