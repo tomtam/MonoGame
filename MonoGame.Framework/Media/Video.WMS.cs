@@ -135,9 +135,12 @@ namespace Microsoft.Xna.Framework.Media
         {
             foreach (var source in _sources)
             {
-                source.Stop();
-                source.Shutdown();
-                source.Dispose();
+                if (!source.IsDisposed)
+                {
+                    source.Stop();
+                    source.Shutdown();
+                    source.Dispose();
+                }
             }
 
             _sources.Clear();
