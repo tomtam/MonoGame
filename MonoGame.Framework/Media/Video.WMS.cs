@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 using SharpDX;
 using SharpDX.MediaFoundation;
 using System;
+using System.Collections.Generic;
 
 namespace Microsoft.Xna.Framework.Media
 {
@@ -13,6 +14,8 @@ namespace Microsoft.Xna.Framework.Media
         internal Topology Topology { get; private set; }
         internal VideoSampleGrabber SampleGrabber { get; private set; }
 
+        private List<SharpDX.MediaFoundation.MediaSource> _sources = new List<SharpDX.MediaFoundation.MediaSource>();
+        
         private static Video PlatformFromUri(Uri uri)
         {
             var filename = uri.LocalPath;            
@@ -62,6 +65,10 @@ namespace Microsoft.Xna.Framework.Media
                     MediaFactory.CreateTopologyNode(TopologyType.SourceStreamNode, out sourceNode);
 
                     sourceNode.Set(TopologyNodeAttributeKeys.Source, mediaSource);
+
+                    if (!_sources.Contains(mediaSource))
+                        _sources.Add(mediaSource);
+
                     sourceNode.Set(TopologyNodeAttributeKeys.PresentationDescriptor, presDesc);
                     sourceNode.Set(TopologyNodeAttributeKeys.StreamDescriptor, desc);                                        
                     
@@ -122,11 +129,19 @@ namespace Microsoft.Xna.Framework.Media
             }
 
             presDesc.Dispose();
-            mediaSource.Dispose();
         }
 
         private void PlatformDispose(bool disposing)
         {
+            foreach (var source in _sources)
+            {
+                source.Stop();
+                source.Shutdown();
+                source.Dispose();
+            }
+
+            _sources.Clear();
+
             if (Topology != null)
             {
                 Topology.Dispose();
