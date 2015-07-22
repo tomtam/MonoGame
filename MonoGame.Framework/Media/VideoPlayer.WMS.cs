@@ -83,6 +83,8 @@ namespace Microsoft.Xna.Framework.Media
                     _player._state = MediaState.Stopped;
                 }
 
+                ev.Dispose();
+
                 _player._session.BeginGetEvent(this, null);
             }
         }
@@ -168,7 +170,13 @@ namespace Microsoft.Xna.Framework.Media
             {
                 _session.Stop();
                 _volumeController.Dispose();
+            }
+
+            if (_clock != null)
+            {
+                _clock.Stop();
                 _clock.Dispose();
+                _clock = null;
             }
 
             // Set the new song.
@@ -238,6 +246,13 @@ namespace Microsoft.Xna.Framework.Media
         private void PlatformStop()
         {
             _session.Stop();
+
+            if (_callback != null)
+            {
+                _callback.Dispose();
+                _callback = null;
+            }
+            
         }
 
         private void PlatformSetVolume()
@@ -298,6 +313,21 @@ namespace Microsoft.Xna.Framework.Media
             {
                 _textureBuffer.Dispose();
                 _textureBuffer = null;
+            }
+
+            _session.Stop();
+            _session.Shutdown();
+
+            if (_volumeController != null)
+            {
+                _volumeController.Dispose();
+                _volumeController = null;
+            }
+
+            if (!_clock.IsDisposed)
+            {
+                _clock.Stop();
+                _clock.Dispose();
             }
         }
     }
