@@ -174,7 +174,11 @@ namespace Microsoft.Xna.Framework.Media
 
             if (_clock != null)
             {
-                _clock.Stop();
+                ClockState state;
+                _clock.GetState(0, out state);
+                if (state != ClockState.Stopped)
+                    _clock.Stop();
+
                 _clock.Dispose();
                 _clock = null;
             }
@@ -324,10 +328,14 @@ namespace Microsoft.Xna.Framework.Media
                 _volumeController = null;
             }
 
-            if (!_clock.IsDisposed)
+            if (_clock != null)
             {
-                _clock.Stop();
+                ClockState state;
+                _clock.GetState(0, out state);
+                if (state != ClockState.Stopped)
+                    _clock.Stop();
                 _clock.Dispose();
+                _clock = null;
             }
         }
     }
