@@ -216,6 +216,11 @@ namespace Microsoft.Xna.Framework.Media
                     Value = (long)0,
                 };
             _session.Start(null, varStart);
+
+            while (State != MediaState.Playing)
+            {
+                Thread.Sleep(25);
+            }
         }
 
         internal static IntPtr GetVolumeObj(MediaSession session)
