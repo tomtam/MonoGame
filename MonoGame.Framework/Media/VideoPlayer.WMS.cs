@@ -59,8 +59,10 @@ namespace Microsoft.Xna.Framework.Media
 
         private class Callback : IAsyncCallback
         {
-            private readonly VideoPlayer _player;
+            private VideoPlayer _player;
 
+            private readonly object _locker = new object();
+            
             public AsyncCallbackFlags Flags { get; private set; }
             public WorkQueueId WorkQueueId { get; private set; }
 
@@ -71,21 +73,28 @@ namespace Microsoft.Xna.Framework.Media
 
             public void Dispose()
             {
+                lock (_locker)
+                    _player = null;
             }
 
             public IDisposable Shadow { get; set; }
 
             public void Invoke(AsyncResult asyncResultRef)
             {
-                var ev = _player._session.EndGetEvent(asyncResultRef);
-                if (ev.TypeInfo == MediaEventTypes.SessionEnded)
+                lock (_locker)
                 {
-                    _player._state = MediaState.Stopped;
+                    if (_player == null)
+                        return;
+
+                    var ev = _player._session.EndGetEvent(asyncResultRef);
+
+                    if (ev.TypeInfo == MediaEventTypes.SessionEnded)
+                        _player._state = MediaState.Stopped;
+
+                    ev.Dispose();
+
+                    _player._session.BeginGetEvent(this, null);
                 }
-
-                ev.Dispose();
-
-                _player._session.BeginGetEvent(this, null);
             }
         }
 
@@ -249,14 +258,7 @@ namespace Microsoft.Xna.Framework.Media
 
         private void PlatformStop()
         {
-            _session.Stop();
-
-            if (_callback != null)
-            {
-                _callback.Dispose();
-                _callback = null;
-            }
-            
+            _session.Stop();            
         }
 
         private void PlatformSetVolume()
@@ -319,8 +321,15 @@ namespace Microsoft.Xna.Framework.Media
                 _textureBuffer = null;
             }
 
+            if (_callback != null)
+            {
+                _callback.Dispose();
+                _callback = null;
+            }
+
             _session.Stop();
             _session.Shutdown();
+            _state = MediaState.Stopped;
 
             if (_volumeController != null)
             {
@@ -337,6 +346,9 @@ namespace Microsoft.Xna.Framework.Media
                 _clock.Dispose();
                 _clock = null;
             }
+
+            _session.Dispose();
+            _session = null;
         }
     }
 }
