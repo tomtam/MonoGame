@@ -1,4 +1,12 @@
-﻿using System;
+﻿// This code originated from:
+//
+//    http://theinstructionlimit.com/ogg-streaming-using-opentk-and-nvorbis
+//    https://github.com/renaudbedard/nvorbis/
+//
+// It was released to the public domain by the author (Renaud Bedard).
+// No other license is intended or required. 
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -167,7 +175,7 @@ namespace MonoGame.Utilities
 
         public TimeSpan GetPosition()
         {
-            if (Reader == null || Reader.DecodedTime == null)
+            if (Reader == null)
                 return TimeSpan.Zero;
 
             return Reader.DecodedTime;
@@ -341,6 +349,9 @@ namespace MonoGame.Utilities
 
         public OggStreamer(int bufferSize = DefaultBufferSize, float updateRate = DefaultUpdateRate)
         {
+            UpdateRate = updateRate;
+            BufferSize = bufferSize;
+
             lock (singletonMutex)
             {
                 if (instance != null)
@@ -350,9 +361,6 @@ namespace MonoGame.Utilities
                 underlyingThread = new Thread(EnsureBuffersFilled) { Priority = ThreadPriority.Lowest };
                 underlyingThread.Start();
             }
-
-            UpdateRate = updateRate;
-            BufferSize = bufferSize;
 
             readSampleBuffer = new float[bufferSize];
             castBuffer = new short[bufferSize];
@@ -413,7 +421,7 @@ namespace MonoGame.Utilities
         {
             while (!cancelled)
             {
-                Thread.Sleep((int) (1000 / UpdateRate));
+                Thread.Sleep((int) (1000 / ((UpdateRate <= 0) ? 1 : UpdateRate)));
                 if (cancelled) break;
 
                 threadLocalStreams.Clear();
