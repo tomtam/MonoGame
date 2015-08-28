@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.Xna.Framework.Graphics;
 using SharpDX;
@@ -100,6 +101,7 @@ namespace Microsoft.Xna.Framework.Media
             public WorkQueueId WorkQueueId { get; private set; }
         }
 
+        #endregion // Supporting Types
 
         // HACK: Need SharpDX to fix this.
         private static Guid AudioStreamVolumeGuid;
@@ -327,6 +329,19 @@ namespace Microsoft.Xna.Framework.Media
 
             _session.Dispose();
             _session = null;
+        }
+
+        private void OnTopologyReady()
+        {
+            if (_session.IsDisposed)
+                return;
+
+            // Get the volume interface.
+            IntPtr volumeObjectPtr;
+            MediaFactory.GetService(_session, MediaServiceKeys.StreamVolume, AudioStreamVolumeGuid, out volumeObjectPtr);
+            _volumeController = CppObject.FromPointer<AudioStreamVolume>(volumeObjectPtr);
+
+            SetChannelVolumes();
         }
     }
 }
