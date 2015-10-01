@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.Xna.Framework.Graphics;
 using SharpDX;
@@ -58,21 +57,49 @@ namespace Microsoft.Xna.Framework.Media
             }
         }
 
+        private enum PlayerState
+        {
+            Stopped,
+            Playing,
+            Paused,
+            Error,
+        };
+
         private class Callback : IAsyncCallback
         {
             private VideoPlayer _player;
+            private MediaSession _session;
 
             private readonly object _locker = new object();
-            
+
+            private PlayerState _state;
+
+            public PlayerState State
+            {
+                get
+                {
+                    lock (_locker)
+                    {
+                        return _state;
+                    }
+                }
+            }
+
             public Callback(VideoPlayer player)
             {
                 _player = player;
+                _session = player._session;
             }
 
             public void Dispose()
             {
                 lock (_locker)
+                {
                     _player = null;
+                    _session = null;
+                }
+
+                Shadow = null;
             }
 
             public IDisposable Shadow { get; set; }
@@ -81,19 +108,40 @@ namespace Microsoft.Xna.Framework.Media
             {
                 lock (_locker)
                 {
-                    if (_player == null)
+                    if (_session == null)
                         return;
 
-                    var ev = _player._session.EndGetEvent(asyncResultRef);
+                    var ev = _session.EndGetEvent(asyncResultRef);
 
-                    if (ev.TypeInfo == MediaEventTypes.SessionEnded)
-                        _player._state = MediaState.Stopped;
-                    else if (ev.TypeInfo == MediaEventTypes.SessionTopologyStatus && ev.Get(EventAttributeKeys.TopologyStatus) == TopologyStatus.Ready)
-                        _player.OnTopologyReady();
+                    if (ev.TypeInfo == MediaEventTypes.SessionClosed)
+                        _state = PlayerState.Stopped;
+                    else
+                    {
+                        // Handle errors.
+                        if (ev.TypeInfo == MediaEventTypes.Error)
+                            _state = PlayerState.Error;
+
+                        // Handle normal playback states.
+                        else if (ev.TypeInfo == MediaEventTypes.SessionEnded || ev.TypeInfo == MediaEventTypes.SessionStopped)
+                            _state = PlayerState.Stopped;
+                        else if (ev.TypeInfo == MediaEventTypes.SessionStarted)
+                            _state = PlayerState.Playing;
+                        else if (ev.TypeInfo == MediaEventTypes.SessionPaused)
+                            _state = PlayerState.Paused;
+
+                        // Let the player know the topology is ready 
+                        // so it can setup volume controllers.
+                        else if (ev.TypeInfo == MediaEventTypes.SessionTopologyStatus)
+                        {
+                            var tstat = ev.Get(EventAttributeKeys.TopologyStatus);
+                            if (tstat == TopologyStatus.Ready)
+                                _player.OnTopologyReady();
+                        }
+
+                        _session.BeginGetEvent(this, null);
+                    }
 
                     ev.Dispose();
-
-                    _player._session.BeginGetEvent(this, null);
                 }
             }
 
@@ -150,37 +198,48 @@ namespace Microsoft.Xna.Framework.Media
             return texture;
         }
 
+        private MediaState GetCallbackMediaState()
+        {
+            if (_callback == null)
+                return MediaState.Stopped;
+
+            var state = _callback.State;
+            switch (state)
+            {
+                case PlayerState.Stopped:
+                    return MediaState.Stopped;
+                case PlayerState.Playing:
+                    return MediaState.Playing;
+                case PlayerState.Paused:
+                    return MediaState.Paused;
+                case PlayerState.Error:
+                    throw new Exception("VideoPlayer media playback error!");
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
+
+        private void BlockForState(MediaState state)
+        {
+            while (GetCallbackMediaState() != state)
+                Thread.Sleep(25);            
+        }
+
         private void PlatformGetState(ref MediaState result)
         {
-            if (_clock != null)
-            {
-                ClockState state;
-                _clock.GetState(0, out state);
-
-                switch (state)
-                {
-                    case ClockState.Running:
-                        result = MediaState.Playing;
-                        return;
-
-                    case ClockState.Paused:
-                        result = MediaState.Paused;
-                        return;
-                }
-            }
-
-            result = MediaState.Stopped;
+            result = GetCallbackMediaState();
         }
 
         private void PlatformPause()
         {
             _session.Pause();
+            BlockForState(MediaState.Paused);
         }
 
         private void PlatformPlay()
         {
             // Cleanup the last song first.
-            if (State != MediaState.Stopped)
+            if (GetCallbackMediaState() != MediaState.Stopped)
             {
                 _session.Stop();
                 _volumeController.Dispose();
@@ -212,18 +271,19 @@ namespace Microsoft.Xna.Framework.Media
 
             // Start playing.
             _session.Start(null, new Variant());
-            while (State != MediaState.Playing)
-                Thread.Sleep(25);
+            BlockForState(MediaState.Playing);
         }
 
         private void PlatformResume()
         {
             _session.Start(null, new Variant());
+            BlockForState(MediaState.Playing);
         }
 
         private void PlatformStop()
         {
             _session.Stop();            
+            BlockForState(MediaState.Stopped);
         }
 
         private void SetChannelVolumes()
