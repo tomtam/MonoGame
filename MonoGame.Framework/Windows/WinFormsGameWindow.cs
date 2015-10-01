@@ -439,6 +439,8 @@ namespace MonoGame.Framework
                 Game.Tick();
             }
 
+            // COUNTER-HACK: THIS SEEMS TO STALL BTA ON SHUTDOWN!
+            /*
             // We need to remove the WM_QUIT message in the message 
             // pump as it will keep us from restarting on this 
             // same thread.
@@ -456,6 +458,7 @@ namespace MonoGame.Framework
                 Thread.Sleep(100);
             } 
             while (PeekMessage(out msg, IntPtr.Zero, 0, 0, 1));
+            */
         }
 
         internal void UpdateWindows()
