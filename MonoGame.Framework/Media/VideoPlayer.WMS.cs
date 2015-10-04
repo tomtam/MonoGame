@@ -245,16 +245,7 @@ namespace Microsoft.Xna.Framework.Media
                 _volumeController.Dispose();
             }
 
-            if (_clock != null)
-            {
-                ClockState state;
-                _clock.GetState(0, out state);
-                if (state != ClockState.Stopped)
-                    _clock.Stop();
-
-                _clock.Dispose();
-                _clock = null;
-            }
+            DisposeClock();
 
             // create the callback if it hasn't been created yet
             if (_callback == null)
@@ -353,6 +344,23 @@ namespace Microsoft.Xna.Framework.Media
                 _session.Pause();
         }
 
+        private void DisposeClock()
+        {
+            if (_clock == null) 
+                return;
+
+            if (_clock.TimeSource != null)
+            {
+                ClockState state;
+                _clock.GetState(0, out state);
+                if (state != ClockState.Stopped)
+                    _clock.Stop();
+            }
+
+            _clock.Dispose();
+            _clock = null;
+        }
+
         private void PlatformDispose(bool disposing)
         {
             if (_textureBuffer != null)
@@ -377,15 +385,7 @@ namespace Microsoft.Xna.Framework.Media
                 _volumeController = null;
             }
 
-            if (_clock != null)
-            {
-                ClockState state;
-                _clock.GetState(0, out state);
-                if (state != ClockState.Stopped)
-                    _clock.Stop();
-                _clock.Dispose();
-                _clock = null;
-            }
+            DisposeClock();
 
             _session.Dispose();
             _session = null;
