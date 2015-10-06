@@ -57,12 +57,13 @@ namespace Microsoft.Xna.Framework.Media
             }
         }
 
-        private enum PlayerState
+        private enum SessionState
         {
             Stopped,
             Playing,
             Paused,
             Error,
+            Closed,
         };
 
         private class Callback : IAsyncCallback
@@ -72,14 +73,19 @@ namespace Microsoft.Xna.Framework.Media
 
             private readonly object _locker = new object();
 
-            private PlayerState _state;
+            private SessionState _state;
 
-            public PlayerState State
+            public SessionState State
             {
                 get
                 {
                     lock (_locker)
                     {
+                        // Explode if the video session has gotten into
+                        // an error state...  we can't really recover.
+                        if (_state == SessionState.Error)
+                            throw new Exception("VideoPlayer media playback error!");
+
                         return _state;
                     }
                 }
@@ -99,7 +105,11 @@ namespace Microsoft.Xna.Framework.Media
                     _session = null;
                 }
 
-                Shadow = null;
+                if (Shadow != null)
+                {
+                    //Shadow.Dispose();
+                    Shadow = null;
+                }
             }
 
             public IDisposable Shadow { get; set; }
@@ -114,23 +124,27 @@ namespace Microsoft.Xna.Framework.Media
                     var ev = _session.EndGetEvent(asyncResultRef);
 
                     if (ev.TypeInfo == MediaEventTypes.SessionClosed)
-                        _state = PlayerState.Stopped;
+                        _state = SessionState.Closed;
                     else
                     {
                         // Handle errors.
                         if (ev.TypeInfo == MediaEventTypes.Error)
-                            _state = PlayerState.Error;
+                        {
+                            var stat = ev.Status;
+                            _state = SessionState.Error;
+                        }
 
-                        // Handle normal playback states.
-                        else if (ev.TypeInfo == MediaEventTypes.SessionEnded || ev.TypeInfo == MediaEventTypes.SessionStopped)
-                            _state = PlayerState.Stopped;
+                            // Handle normal playback states.
+                        else if (ev.TypeInfo == MediaEventTypes.SessionEnded ||
+                                 ev.TypeInfo == MediaEventTypes.SessionStopped)
+                            _state = SessionState.Stopped;
                         else if (ev.TypeInfo == MediaEventTypes.SessionStarted)
-                            _state = PlayerState.Playing;
+                            _state = SessionState.Playing;
                         else if (ev.TypeInfo == MediaEventTypes.SessionPaused)
-                            _state = PlayerState.Paused;
+                            _state = SessionState.Paused;
 
-                        // Let the player know the topology is ready 
-                        // so it can setup volume controllers.
+                            // Let the player know the topology is ready 
+                            // so it can setup volume controllers.
                         else if (ev.TypeInfo == MediaEventTypes.SessionTopologyStatus)
                         {
                             var tstat = ev.Get(EventAttributeKeys.TopologyStatus);
@@ -200,29 +214,37 @@ namespace Microsoft.Xna.Framework.Media
 
         private MediaState GetCallbackMediaState()
         {
-            if (_callback == null)
+            // No callback or clock... the video surely isn't playing.
+            if (_callback == null || _clock == null)
                 return MediaState.Stopped;
 
+            // This will throw if we encounter a video session error.
             var state = _callback.State;
+
+            // Translate to the expected media state.
             switch (state)
             {
-                case PlayerState.Stopped:
+                case SessionState.Stopped:
                     return MediaState.Stopped;
-                case PlayerState.Playing:
+                case SessionState.Playing:
                     return MediaState.Playing;
-                case PlayerState.Paused:
+                case SessionState.Paused:
                     return MediaState.Paused;
-                case PlayerState.Error:
-                    throw new Exception("VideoPlayer media playback error!");
                 default:
                     throw new ArgumentOutOfRangeException();
             }
         }
 
+        private void BlockForState(SessionState state)
+        {
+            while (_callback.State != state)
+                Thread.Sleep(25);
+        }
+
         private void BlockForState(MediaState state)
         {
             while (GetCallbackMediaState() != state)
-                Thread.Sleep(25);            
+                Thread.Sleep(25);
         }
 
         private void PlatformGetState(ref MediaState result)
@@ -238,14 +260,7 @@ namespace Microsoft.Xna.Framework.Media
 
         private void PlatformPlay()
         {
-            // Cleanup the last song first.
-            if (GetCallbackMediaState() != MediaState.Stopped)
-            {
-                _session.Stop();
-                _volumeController.Dispose();
-            }
-
-            DisposeClock();
+            PlatformStop();
 
             // create the callback if it hasn't been created yet
             if (_callback == null)
@@ -257,7 +272,7 @@ namespace Microsoft.Xna.Framework.Media
             // Set the new song.
             _session.SetTopology(0, _currentVideo.Topology);
 
-            // Get the clock.
+            // Get the new clock.
             _clock = _session.Clock.QueryInterface<PresentationClock>();
 
             // Start playing.
@@ -273,8 +288,16 @@ namespace Microsoft.Xna.Framework.Media
 
         private void PlatformStop()
         {
-            _session.Stop();            
+            if (_clock == null)
+                return;
+
+            _session.Stop();
             BlockForState(MediaState.Stopped);
+
+            _clock.Dispose();
+            _clock = null;
+            _volumeController.Dispose();
+            _volumeController = null;
         }
 
         private void SetChannelVolumes()
@@ -315,7 +338,7 @@ namespace Microsoft.Xna.Framework.Media
 
         private TimeSpan PlatformGetPlayPosition()
         {
-            if (_state == MediaState.Stopped)
+            if (_clock == null || _clock.TimeSource == null)
                 return TimeSpan.Zero;
 
             return TimeSpan.FromTicks(_clock.Time);
@@ -344,23 +367,6 @@ namespace Microsoft.Xna.Framework.Media
                 _session.Pause();
         }
 
-        private void DisposeClock()
-        {
-            if (_clock == null) 
-                return;
-
-            if (_clock.TimeSource != null)
-            {
-                ClockState state;
-                _clock.GetState(0, out state);
-                if (state != ClockState.Stopped)
-                    _clock.Stop();
-            }
-
-            _clock.Dispose();
-            _clock = null;
-        }
-
         private void PlatformDispose(bool disposing)
         {
             if (_textureBuffer != null)
@@ -369,24 +375,26 @@ namespace Microsoft.Xna.Framework.Media
                 _textureBuffer = null;
             }
 
+            // If we don't have a callback we haven't
+            // played even once.
             if (_callback != null)
             {
+                // Wait for the playback to stop and
+                // playback objects to be cleaned up.
+                PlatformStop();
+
+                // Wait for the session to close.
+                _session.Close();
+                BlockForState(SessionState.Closed);
+
+                // Free the callback;
                 _callback.Dispose();
                 _callback = null;
             }
 
-            _session.Stop();
+            // Now shutdown the session... this is syncronous
+            // and has no events to block for.
             _session.Shutdown();
-            _state = MediaState.Stopped;
-
-            if (_volumeController != null)
-            {
-                _volumeController.Dispose();
-                _volumeController = null;
-            }
-
-            DisposeClock();
-
             _session.Dispose();
             _session = null;
         }
