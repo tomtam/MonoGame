@@ -198,8 +198,16 @@ namespace Microsoft.Xna.Framework.Media
             _session.ClearTopologies();
             _session.Stop();
             _session.Close();
-            _volumeController.Dispose();
-            _volumeController = null;
+
+            // TODO: This could be null if the topology hasn't finished
+            // being initialized... which means we have a race condition
+            // here that needs to be protected with more than a null check.
+            if (_volumeController != null)
+            {
+                _volumeController.Dispose();
+                _volumeController = null;
+            }
+
             _clock.Dispose();
             _clock = null;
         }
