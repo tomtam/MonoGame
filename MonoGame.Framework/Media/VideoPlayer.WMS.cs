@@ -19,6 +19,7 @@ namespace Microsoft.Xna.Framework.Media
 
             public readonly int Width;
             public readonly int Height;
+            public readonly int TextureDataSize;            
 
             public TextureBuffer(GraphicsDevice device, int width, int height)
             {
@@ -31,6 +32,7 @@ namespace Microsoft.Xna.Framework.Media
 
                 Width = width;
                 Height = height;
+                TextureDataSize = width * height * 4;
             }
 
             public Texture2D Get()
@@ -159,6 +161,8 @@ namespace Microsoft.Xna.Framework.Media
         private PresentationClock _clock;
         private Callback _callback;
         private TextureBuffer _textureBuffer;
+        private byte[] _tempTextureData;
+        private int _lastSampleCount;
 
         private void PlatformInitialize()
         {
@@ -173,26 +177,34 @@ namespace Microsoft.Xna.Framework.Media
         {
             var sampleGrabber = _currentVideo.SampleGrabber;
 
+            if (sampleGrabber.SampleCount == 0)
+                return null;
+
             if (_textureBuffer != null && (_textureBuffer.Width != _currentVideo.Width || _textureBuffer.Height != _currentVideo.Height))
             {
                 _textureBuffer.Dispose();
                 _textureBuffer = null;
+                _tempTextureData = null;
             }
 
             if (_textureBuffer == null)
             {
                 _textureBuffer = new TextureBuffer(Game.Instance.GraphicsDevice, _currentVideo.Width, _currentVideo.Height);
+                _tempTextureData = new byte[_textureBuffer.TextureDataSize];
 
-                if (sampleGrabber.TextureData != null)
-                    _textureBuffer.Init(sampleGrabber.TextureData);
+                sampleGrabber.Get(_tempTextureData);
+                _textureBuffer.Init(_tempTextureData);
             }
 
             var texture = _textureBuffer.Get();
-            if (sampleGrabber.Dirty)
-            {
-                if (sampleGrabber.TextureData != null)
-                    _textureBuffer.Set(sampleGrabber.TextureData);
-                sampleGrabber.Dirty = false;
+
+            var sampleCount = sampleGrabber.SampleCount;
+            if (sampleCount != _lastSampleCount)
+            {   
+                sampleGrabber.Get(_tempTextureData);
+                _textureBuffer.Set(_tempTextureData);
+
+                _lastSampleCount = sampleCount;
             }
 
             return texture;

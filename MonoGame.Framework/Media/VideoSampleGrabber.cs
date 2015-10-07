@@ -6,16 +6,49 @@ namespace Microsoft.Xna.Framework.Media
 {
     internal class VideoSampleGrabber : SharpDX.CallbackBase, SampleGrabberSinkCallback
     {
-        internal bool Dirty { get; set; }
-        internal byte[] TextureData { get; private set; }
+        private readonly object _lock = new object();
+        
+        private byte[] _lastSample;
+        private int _lastSampleSize;
+        private int _sampleCount;
+
+        public int SampleCount
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return _sampleCount;
+                }
+            }
+        }
+
+        public void Get(byte[] outData)
+        {
+            lock (_lock)
+            {
+                if (_lastSample == null)
+                    throw new Exception("No sample data has been received");
+                
+                if (outData.Length != _lastSampleSize)
+                    throw new Exception(string.Format("buffer length '{0}' does not match sample size '{1}'", outData.Length, _lastSampleSize));
+                
+                Array.Copy(_lastSample, 0, outData, 0, _lastSampleSize);
+            }
+        }
         
         public void OnProcessSample(Guid guidMajorMediaType, int dwSampleFlags, long llSampleTime, long llSampleDuration, IntPtr sampleBufferRef, int dwSampleSize)
         {
-            if (TextureData == null || TextureData.Length != dwSampleSize)
-                TextureData = new byte[dwSampleSize];
+            lock (_lock)
+            {
+                if (_lastSample == null || _lastSample.Length != dwSampleSize)
+                    _lastSample = new byte[dwSampleSize];
 
-            Marshal.Copy(sampleBufferRef, TextureData, 0, dwSampleSize);
-            Dirty = true;
+                Marshal.Copy(sampleBufferRef, _lastSample, 0, dwSampleSize);
+                
+                _lastSampleSize = dwSampleSize;
+                _sampleCount++;
+            }
         }
 
         public void OnSetPresentationClock(PresentationClock presentationClockRef)
