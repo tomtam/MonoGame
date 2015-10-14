@@ -14,7 +14,7 @@ namespace Microsoft.Xna.Framework.Media
         internal Topology Topology { get; private set; }
         internal VideoSampleGrabber SampleGrabber { get; private set; }
 
-        private List<SharpDX.MediaFoundation.MediaSource> _sources = new List<SharpDX.MediaFoundation.MediaSource>();
+        private readonly List<SharpDX.MediaFoundation.MediaSource> _sources = new List<SharpDX.MediaFoundation.MediaSource>();
         
         private static Video PlatformFromUri(Uri uri)
         {
@@ -76,8 +76,6 @@ namespace Microsoft.Xna.Framework.Media
                     var mediaType = desc.MediaTypeHandler.CurrentMediaType;
                     if (mediaType.MajorType == MediaTypeGuids.Video)
                     {
-                        Activate activate;
-
                         SampleGrabber = new VideoSampleGrabber();
                         
                         // Specify that we want the data to come in as RGB32.
@@ -86,8 +84,9 @@ namespace Microsoft.Xna.Framework.Media
                         temp.Set(MediaTypeAttributeKeys.MajorType, MediaTypeGuids.Video);
                         temp.Set(MediaTypeAttributeKeys.Subtype, RGB32MediaFormatAttributeGuid);
 
+                        Activate activate;
                         MediaFactory.CreateSampleGrabberSinkActivate(temp, SampleGrabber, out activate);
-                        outputNode.Object = activate;
+                        outputNode.Object = activate;                        
 
                         long dword;
                         int upper, lower;
@@ -104,12 +103,14 @@ namespace Microsoft.Xna.Framework.Media
                         Topology.AddNode(sourceNode);
                         Topology.AddNode(outputNode);
                         sourceNode.ConnectOutput(0, outputNode, 0);
+
+                        temp.Dispose();
+                        activate.Dispose();
                     }
                     else if (mediaType.MajorType == MediaTypeGuids.Audio)
                     {
                         Activate activate;
                         MediaFactory.CreateAudioRendererActivate(out activate);
-
                         outputNode.Object = activate;
 
                         // VideoSoundtrackType??
@@ -117,6 +118,8 @@ namespace Microsoft.Xna.Framework.Media
                         Topology.AddNode(sourceNode);
                         Topology.AddNode(outputNode);
                         sourceNode.ConnectOutput(0, outputNode, 0);
+
+                        activate.Dispose();
                     }
 
                     sourceNode.Dispose();
@@ -131,17 +134,28 @@ namespace Microsoft.Xna.Framework.Media
 
         private void PlatformDispose(bool disposing)
         {
+            // Cleanup the sources.
             foreach (var source in _sources)
-            {
-                if (!source.IsDisposed)
-                {
-                    source.Stop();
-                    source.Shutdown();
-                    source.Dispose();
-                }
-            }
-
+                source.Stop();
+            foreach (var source in _sources)
+                source.Shutdown();            
+            foreach (var source in _sources)
+                source.Dispose();
             _sources.Clear();
+
+            if (SampleGrabber != null)
+            {
+                // HACK: Looks like disposing the sample grabber callback 
+                // object will cause crashes in disposing the topology
+                // below...  i suspect the dispose here is not releasing
+                // the COM object correctly.
+                //
+                // For now just don't dispose and allow the potential
+                // leak of the callback object.
+
+                //SampleGrabber.Dispose();
+                SampleGrabber = null;
+            }
 
             if (Topology != null)
             {
@@ -149,11 +163,6 @@ namespace Microsoft.Xna.Framework.Media
                 Topology = null;
             }
 
-            if (SampleGrabber != null)
-            {
-                SampleGrabber.Dispose();
-                SampleGrabber = null;
-            }
         }
     }
 }
