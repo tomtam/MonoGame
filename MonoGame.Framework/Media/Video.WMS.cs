@@ -134,6 +134,9 @@ namespace Microsoft.Xna.Framework.Media
 
         private void PlatformDispose(bool disposing)
         {
+            if (disposing == false)
+                return;
+
             // Cleanup the sources.
             foreach (var source in _sources)
                 source.Stop();
@@ -143,26 +146,17 @@ namespace Microsoft.Xna.Framework.Media
                 source.Dispose();
             _sources.Clear();
 
-            if (SampleGrabber != null)
-            {
-                // HACK: Looks like disposing the sample grabber callback 
-                // object will cause crashes in disposing the topology
-                // below...  i suspect the dispose here is not releasing
-                // the COM object correctly.
-                //
-                // For now just don't dispose and allow the potential
-                // leak of the callback object.
-
-                //SampleGrabber.Dispose();
-                SampleGrabber = null;
-            }
-
             if (Topology != null)
             {
                 Topology.Dispose();
                 Topology = null;
             }
 
+            if (SampleGrabber != null)
+            {
+                SampleGrabber.Dispose();
+                SampleGrabber = null;
+            }
         }
     }
 }

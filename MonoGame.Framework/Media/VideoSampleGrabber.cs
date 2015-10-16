@@ -7,7 +7,8 @@ namespace Microsoft.Xna.Framework.Media
     internal class VideoSampleGrabber : SharpDX.CallbackBase, SampleGrabberSinkCallback
     {
         private readonly object _lock = new object();
-        
+
+        private bool _disposed;
         private byte[] _lastSample;
         private int _lastSampleSize;
         private int _sampleCount;
@@ -84,6 +85,29 @@ namespace Microsoft.Xna.Framework.Media
         public void OnClockStop(long hnsSystemTime)
         {
 
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+
+            lock (_lock)
+            {
+                _lastSample = null;
+            }
+
+            _disposed = true;
+
+            // HACK: Looks like disposing the sample grabber callback 
+            // object will cause crashes in disposing the topology... 
+            // i suspect the dispose here is not releasing the COM 
+            // object correctly.
+            //
+            // For now just don't dispose and allow the potential
+            // leak of the callback object.
+
+            //base.Dispose(disposing);
         }
     }
 }
