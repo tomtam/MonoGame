@@ -15,56 +15,53 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
     /// </summary>
     public class AudioContent : ContentItem
     {
-        internal List<byte> data;
-        TimeSpan duration;
-        string fileName;
-        AudioFileType fileType;
-        AudioFormat format;
-        int loopLength;
-        int loopStart;
+        private readonly string _fileName;
+        private readonly AudioFileType _fileType;
+        private List<byte> _data;
+        private TimeSpan _duration;
+        private AudioFormat _format;
+        private int _loopLength;
+        private int _loopStart;
 
         /// <summary>
-        /// Gets the raw audio data.
+        /// The current raw audio data.
         /// </summary>
-        /// <value>If unprocessed, the source data; otherwise, the processed data.</value>
-        public ReadOnlyCollection<byte> Data { get { return data.AsReadOnly(); } }
+        /// <remarks>This changes from the source data to the output data after conversion.</remarks>
+        public ReadOnlyCollection<byte> Data { get { return _data.AsReadOnly(); } }
 
         /// <summary>
-        /// Gets the duration (in milliseconds) of the audio data.
+        /// The duration of the audio data in milliseconds.
         /// </summary>
-        /// <value>Duration of the audio data.</value>
-        public TimeSpan Duration { get { return duration; } }
+        public TimeSpan Duration { get { return _duration; } }
 
         /// <summary>
-        /// Gets the file name containing the audio data.
+        /// The name of the original source audio file.
         /// </summary>
-        /// <value>The name of the file containing this data.</value>
         [ContentSerializerAttribute]
-        public string FileName { get { return fileName; } }
+        public string FileName { get { return _fileName; } }
 
         /// <summary>
-        /// Gets the AudioFileType of this audio source.
+        /// The type of the original source audio file.
         /// </summary>
-        /// <value>The AudioFileType of this audio source.</value>
-        public AudioFileType FileType { get { return fileType; } }
+        public AudioFileType FileType { get { return _fileType; } }
 
         /// <summary>
-        /// Gets the AudioFormat of this audio source.
+        /// The current format of the audio data.
         /// </summary>
-        /// <value>The AudioFormat of this audio source.</value>
-        public AudioFormat Format { get { return format; } }
+        /// <remarks>This changes from the source format to the output format after conversion.</remarks>
+        public AudioFormat Format { get { return _format; } }
 
         /// <summary>
-        /// Gets the loop length, in samples.
+        /// The current loop length in samples.
         /// </summary>
-        /// <value>The number of samples in the loop.</value>
-        public int LoopLength { get { return loopLength; } }
+        /// <remarks>This changes from the source loop length to the output loop length after conversion.</remarks>
+        public int LoopLength { get { return _loopLength; } }
 
         /// <summary>
-        /// Gets the loop start, in samples.
+        /// The current loop start location in samples.
         /// </summary>
-        /// <value>The number of samples to the start of the loop.</value>
-        public int LoopStart { get { return loopStart; } }
+        /// <remarks>This changes from the source loop start to the output loop start after conversion.</remarks>
+        public int LoopStart { get { return _loopStart; } }
 
         /// <summary>
         /// Initializes a new instance of AudioContent.
@@ -74,32 +71,33 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
         /// <remarks>Constructs the object from the specified source file, in the format specified.</remarks>
         public AudioContent(string audioFileName, AudioFileType audioFileType)
         {
-            fileName = audioFileName;
-            fileType = audioFileType;
-            Read(audioFileName);
+            _fileName = audioFileName;
+            _fileType = audioFileType;
+
+            // Must be opened in read mode otherwise it fails to open
+            // read-only files (found in some source control systems)
+            using (var fs = new FileStream(audioFileName, FileMode.Open, FileAccess.Read))
+            {
+                var data = new byte[fs.Length];
+                fs.Read(data, 0, data.Length);
+                _data = data.ToList();
+            }
+
+            // TODO: We should be populating _duration, _format, _loopLength, 
+            // and _loopStart from the source audio file here.
         }
 
-        /// <summary>
-        /// Returns the sample rate for the given quality setting.
-        /// </summary>
-        /// <param name="quality">The quality setting.</param>
-        /// <returns>The sample rate for the quality.</returns>
         int QualityToSampleRate(ConversionQuality quality)
         {
             switch (quality)
             {
                 case ConversionQuality.Low:
-                    return Math.Max(8000, format.SampleRate / 2);
+                    return Math.Max(8000, _format.SampleRate / 2);
             }
 
-            return Math.Max(8000, format.SampleRate);
+            return Math.Max(8000, _format.SampleRate);
         }
 
-        /// <summary>
-        /// Returns the bitrate for the given quality setting.
-        /// </summary>
-        /// <param name="quality">The quality setting.</param>
-        /// <returns>The bitrate for the quality.</returns>
         int QualityToBitRate(ConversionQuality quality)
         {
             switch (quality)
@@ -131,7 +129,7 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
             {
                 using (var fs = new FileStream(temporarySource, FileMode.Create, FileAccess.Write))
                 {
-                    var dataBytes = this.data.ToArray();
+                    var dataBytes = _data.ToArray();
                     fs.Write(dataBytes, 0, dataBytes.Length);
                 }
 
@@ -215,11 +213,11 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
                         fs.Write(rawData, 0, rawData.Length);
                     }
 
-                    this.data = null;
+                    _data = null;
                 }
                 else
                 {
-                    this.data = rawData.ToList();
+                    _data = rawData.ToList();
                 }
 
                 string ffprobeStdout, ffprobeStderr;
@@ -283,8 +281,8 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
                 }
 
 
-                this.duration = TimeSpan.FromSeconds(durationInSeconds);
-                this.format = new AudioFormat(
+                _duration = TimeSpan.FromSeconds(durationInSeconds);
+                _format = new AudioFormat(
                     averageBytesPerSecond,
                     bitsPerSample,
                     blockAlign,
@@ -293,27 +291,16 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
                     sampleRate);
 
                 // Loop start and length in number of samples. Defaults to entire sound
-                loopStart = 0;
-                if (data != null && bitsPerSample > 0 && channelCount > 0)
-                    loopLength = data.Count / ((bitsPerSample / 8) * channelCount);
+                _loopStart = 0;
+                if (_data != null && bitsPerSample > 0 && channelCount > 0)
+                    _loopLength = _data.Count / ((bitsPerSample / 8) * channelCount);
                 else
-                    loopLength = 0;
+                    _loopLength = 0;
             }
             finally
             {
-                File.Delete(temporarySource);
-                File.Delete(temporaryOutput);
-            }
-        }
-
-        private void Read(string filename)
-        {
-            // Must be opened in read mode otherwise it fails to open read-only files (found in some source control systems)
-            using (var fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
-            {
-                var data = new byte[fs.Length];
-                fs.Read(data, 0, data.Length);
-                this.data = data.ToList();
+                ExternalTool.DeleteFile(temporarySource);
+                ExternalTool.DeleteFile(temporaryOutput);
             }
         }
 	}
