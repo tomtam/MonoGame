@@ -54,7 +54,7 @@ namespace MonoGame.Tools.Pipeline
 
         [Category("Settings")]
         [Description("The platform to target when building content.")]
-        [TypeConverter(typeof(SortedEnumTypeConverter))]
+        [TypeConverter(typeof(TargetPlatformTypeConverter))]
         public TargetPlatform Platform
         {
             get { return _project.Platform; }

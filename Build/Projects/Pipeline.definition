@@ -118,6 +118,9 @@
     <Compile Include="Windows\TreeViewExtensions.cs">
       <Platforms>Windows</Platforms>
     </Compile>
+    <Compile Include="Windows\TargetPlatformTypeConverter.cs">
+      <Platforms>Windows</Platforms>
+    </Compile>
     <Compile Include="Windows\SortedEnumTypeConverter.cs">
       <Platforms>Windows</Platforms>
     </Compile>
