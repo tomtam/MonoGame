@@ -44,7 +44,7 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Processors
             {
                 case ConversionQuality.Medium:
                 case ConversionQuality.Low:
-                    if ((context.TargetPlatform == TargetPlatform.iOS) || (context.TargetPlatform == TargetPlatform.MacOSX))
+                    if ((context.TargetPlatform.IsPlatform("iOS")) || (context.TargetPlatform.IsPlatform("MacOSX")))
                         targetFormat = ConversionFormat.ImaAdpcm;
                     else
                     {

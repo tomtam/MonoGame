@@ -61,7 +61,7 @@ namespace MonoGame.Tests.ContentPipeline
             Assert.That(mgPreprocessed, Is.Not.StringContaining("BAR"));
 
             // Check that we can actually compile this file.
-            BuildEffect(effectFile, TargetPlatform.Windows);
+            BuildEffect(effectFile, TargetPlatform.GetPlatform("Windows"));
         }
 
         private class TestEffectCompilerOutput : IEffectCompilerOutput
@@ -82,15 +82,15 @@ namespace MonoGame.Tests.ContentPipeline
         [TestCase("Assets/Effects/ParserTest.fx")]
         public void TestParser(string effectFile)
         {
-            BuildEffect(effectFile, TargetPlatform.Windows);
+            BuildEffect(effectFile, TargetPlatform.GetPlatform("Windows"));
         }
 
         [Test]
         public void TestDefines()
         {
-            Assert.DoesNotThrow(() => BuildEffect("Assets/Effects/DefinesTest.fx", TargetPlatform.Windows));
+            Assert.DoesNotThrow(() => BuildEffect("Assets/Effects/DefinesTest.fx", TargetPlatform.GetPlatform("Windows")));
             Assert.Throws<InvalidContentException>(() =>
-                BuildEffect("Assets/Effects/DefinesTest.fx", TargetPlatform.Windows, "INVALID_SYNTAX;ANOTHER_MACRO"));
+                BuildEffect("Assets/Effects/DefinesTest.fx", TargetPlatform.GetPlatform("Windows"), "INVALID_SYNTAX;ANOTHER_MACRO"));
         }
 
         [Test]
@@ -102,7 +102,7 @@ namespace MonoGame.Tests.ContentPipeline
         [TestCase("Assets/Effects/Stock/SpriteEffect.fx")]
         public void BuildStockEffect(string effectFile)
         {
-            BuildEffect(effectFile, TargetPlatform.Windows);
+            BuildEffect(effectFile, TargetPlatform.GetPlatform("Windows"));
         }
 
         private void BuildEffect(string effectFile, TargetPlatform targetPlatform, string defines = null)

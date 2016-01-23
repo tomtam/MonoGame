@@ -41,18 +41,13 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Processors
             // Most platforms will use AAC ("mp4") by default
             var targetFormat = ConversionFormat.Aac;
 
-            switch (context.TargetPlatform)
-            {
-                case TargetPlatform.Windows:
-                case TargetPlatform.WindowsPhone8:
-                case TargetPlatform.WindowsStoreApp:
-                    targetFormat = ConversionFormat.WindowsMedia;
-                    break;
+            if (context.TargetPlatform.IsPlatform("Windows") ||
+                context.TargetPlatform.IsPlatform("WindowsPhone8") ||
+                context.TargetPlatform.IsPlatform("WindowsStoreApp"))
+                targetFormat = ConversionFormat.WindowsMedia;
 
-                case TargetPlatform.DesktopGL:
-                    targetFormat = ConversionFormat.Vorbis;
-                    break;
-            }
+            else if (context.TargetPlatform.IsPlatform("DesktopGL"))
+                targetFormat = ConversionFormat.Vorbis;
 
             // Get the song output path with the target format extension.
             var songFileName = Path.ChangeExtension(context.OutputFilename, AudioHelper.GetExtension(targetFormat));

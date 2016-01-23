@@ -28,7 +28,7 @@ namespace MonoGame.Tests.ContentPipeline
         [Test]
         public void ColorConversion()
         {
-            var context = new TestProcessorContext(TargetPlatform.Windows, "dummy.xnb");
+            var context = new TestProcessorContext(TargetPlatform.GetPlatform("Windows"), "dummy.xnb");
 
             var processor = new FontTextureProcessor
             {
