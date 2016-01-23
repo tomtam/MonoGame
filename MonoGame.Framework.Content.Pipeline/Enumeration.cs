@@ -72,29 +72,28 @@ namespace Microsoft.Xna.Framework.Content.Pipeline
 
         static Enumeration()
         {
-            TypeDescriptor.AddAttributes(typeof(TType), new TypeConverterAttribute(typeof(StringConverter)));
+            TypeDescriptor.AddAttributes(typeof(TType), new TypeConverterAttribute(typeof(StringConverter)));           
             _all = new List<TType>();
+
+            var assembly = typeof(TType).Assembly;
+            foreach (var t in assembly.GetTypes())
+            {
+                if (!t.IsAbstract && t.IsSubclassOf(typeof(TType)))
+                {
+                    var ttype = (TType)Activator.CreateInstance(t);
+                    _all.Add(ttype);
+                }
+            }
         }
 
         protected Enumeration(string name, int value)
             : base(name, value)
         {
-            _all.Add(this as TType);
         }
 
         public static IEnumerable<TType> All
         {
             get { return _all; }
-        }
-
-        public static TType FromValue(int value)
-        {
-            return _all.FirstOrDefault(item => item.Value == value);             
-        }
-
-        public static TType FromName(string name)
-        {
-            return _all.FirstOrDefault(item => item.Name == name);
         }
 
         public static bool operator ==(Enumeration<TType> first, Enumeration<TType> second)
