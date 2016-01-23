@@ -36,7 +36,7 @@ namespace TwoMGFX
 				else
 					writer.Write(false);
 
-                if (options.Profile == ShaderProfile.OpenGL)
+                if (options.Profile.IsProfile("OpenGL"))
                     writer.Write(sampler.samplerName);
 
                 writer.Write((byte)sampler.parameter);
@@ -46,7 +46,7 @@ namespace TwoMGFX
             foreach (var cb in _cbuffers)
                 writer.Write((byte)cb);
 
-            if (options.Profile != ShaderProfile.OpenGL)
+            if (!options.Profile.IsProfile("OpenGL"))
                 return;
 
             // The rest of this is for GL only!

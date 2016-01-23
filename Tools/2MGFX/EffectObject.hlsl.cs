@@ -17,7 +17,7 @@ namespace TwoMGFX
                 // in the first place.
                 //shaderFlags |= SharpDX.D3DCompiler.ShaderFlags.NoPreshader;
 
-                if (shaderInfo.Profile == ShaderProfile.DirectX_11)
+                if (shaderInfo.Profile.IsProfile("DirectX_11"))
                     shaderFlags |= SharpDX.D3DCompiler.ShaderFlags.EnableBackwardsCompatibility;
 
                 if (shaderInfo.Debug)
