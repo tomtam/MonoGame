@@ -15,13 +15,17 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Processors
     [ContentProcessor(DisplayName = "Song - MonoGame")]
     public class SongProcessor : ContentProcessor<AudioContent, SongContent>
     {
-        ConversionQuality quality = ConversionQuality.Best;
+        ConversionQuality _quality = ConversionQuality.Best;
 
         /// <summary>
         /// Gets or sets the target format quality of the audio content.
         /// </summary>
         /// <value>The ConversionQuality of this audio data.</value>
-        public ConversionQuality Quality { get { return quality; } set { quality = value; } }
+        public ConversionQuality Quality 
+        { 
+            get { return _quality; } 
+            set { _quality = value; } 
+        }
 
         /// <summary>
         /// Initializes a new instance of SongProcessor.
@@ -38,25 +42,9 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Processors
         /// <returns>The built audio.</returns>
         public override SongContent Process(AudioContent input, ContentProcessorContext context)
         {
-            // Most platforms will use AAC ("mp4") by default
-            var targetFormat = ConversionFormat.Aac;
-
-            if (context.TargetPlatform.IsPlatform("Windows") ||
-                context.TargetPlatform.IsPlatform("WindowsPhone8") ||
-                context.TargetPlatform.IsPlatform("WindowsStoreApp"))
-                targetFormat = ConversionFormat.WindowsMedia;
-
-            else if (context.TargetPlatform.IsPlatform("DesktopGL"))
-                targetFormat = ConversionFormat.Vorbis;
-
-            // Get the song output path with the target format extension.
-            var songFileName = Path.ChangeExtension(context.OutputFilename, AudioHelper.GetExtension(targetFormat));
-
-            // Make sure the output folder for the song exists.
-            Directory.CreateDirectory(Path.GetDirectoryName(songFileName));
-
             // Convert and write out the song media file.
-            input.ConvertFormat(targetFormat, quality, songFileName);
+            var songFileName = context.OutputFilename;
+            input.ConvertStreamingAudio(context.TargetPlatform, _quality, ref songFileName);
 
             // Let the pipeline know about the song file so it can clean things up.
             context.AddOutputFile(songFileName);

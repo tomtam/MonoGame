@@ -38,25 +38,12 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Processors
         /// <returns>The built audio.</returns>
         public override SoundEffectContent Process(AudioContent input, ContentProcessorContext context)
         {
-            var targetFormat = ConversionFormat.Pcm;
+            if (input == null)
+                throw new ArgumentNullException("input");
+            if (context == null)
+                throw new ArgumentNullException("context");
 
-            switch (quality)
-            {
-                case ConversionQuality.Medium:
-                case ConversionQuality.Low:
-                    if ((context.TargetPlatform.IsPlatform("iOS")) || (context.TargetPlatform.IsPlatform("MacOSX")))
-                        targetFormat = ConversionFormat.ImaAdpcm;
-                    else
-                    {
-                        // TODO: For some reason this doesn't work on Windows
-                        // so we fallback to plain PCM and depend on the 
-                        // bitrate reduction only.
-                        //targetFormat = ConversionFormat.Adpcm;
-                    }
-                    break;
-            }
-
-            input.ConvertFormat(targetFormat, quality, null);
+            input.ConvertAudio(context.TargetPlatform, quality);
 
             return new SoundEffectContent(input.Format.NativeWaveFormat, input.Data, input.LoopStart, input.LoopLength, (int)input.Duration.TotalMilliseconds);
         }
