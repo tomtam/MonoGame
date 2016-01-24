@@ -82,8 +82,8 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
                 fs.Read(_data, 0, _data.Length);  
             }
 
-            // TODO: We should be populating _duration, _format, _loopLength, 
-            // and _loopStart from the source audio file here.
+            // Use probe to get the initial format of the file.
+            DefaultAudioProfile.ProbeFormat(audioFileName, out _format, out _duration, out _loopStart, out _loopLength);
         }
 
         /// <summary>
