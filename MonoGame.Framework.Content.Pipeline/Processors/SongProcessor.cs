@@ -42,9 +42,12 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Processors
         /// <returns>The built audio.</returns>
         public override SongContent Process(AudioContent input, ContentProcessorContext context)
         {
-            // Convert and write out the song media file.
+            // The xnb name is the basis for the final song filename.
             var songFileName = context.OutputFilename;
-            input.ConvertStreamingAudio(context.TargetPlatform, _quality, ref songFileName);
+
+            // Convert and write out the song media file.
+            var profile = AudioProfile.ForPlatform(context.TargetPlatform);
+            profile.ConvertStreamingAudio(context.TargetPlatform, _quality, input, ref songFileName);
 
             // Let the pipeline know about the song file so it can clean things up.
             context.AddOutputFile(songFileName);

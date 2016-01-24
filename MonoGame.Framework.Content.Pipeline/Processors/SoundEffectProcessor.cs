@@ -43,7 +43,8 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Processors
             if (context == null)
                 throw new ArgumentNullException("context");
 
-            input.ConvertAudio(context.TargetPlatform, quality);
+            var profile = AudioProfile.ForPlatform(context.TargetPlatform);
+            profile.ConvertAudio(context.TargetPlatform, quality, input);
 
             return new SoundEffectContent(input.Format.NativeWaveFormat, input.Data, input.LoopStart, input.LoopLength, (int)input.Duration.TotalMilliseconds);
         }
