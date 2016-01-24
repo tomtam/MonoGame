@@ -17,22 +17,11 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
     {
         private readonly string _fileName;
         private readonly AudioFileType _fileType;
-        private byte[] _data;
+        private ReadOnlyCollection<byte> _data;
         private TimeSpan _duration;
         private AudioFormat _format;
         private int _loopStart;
         private int _loopLength;
-
-        /// <summary>
-        /// The current raw audio data.
-        /// </summary>
-        /// <remarks>This changes from the source data to the output data after conversion.</remarks>
-        public ReadOnlyCollection<byte> Data { get { return Array.AsReadOnly(_data); } }
-
-        /// <summary>
-        /// The duration of the audio data.
-        /// </summary>
-        public TimeSpan Duration { get { return _duration; } }
 
         /// <summary>
         /// The name of the original source audio file.
@@ -46,22 +35,73 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
         public AudioFileType FileType { get { return _fileType; } }
 
         /// <summary>
+        /// The current raw audio data.
+        /// </summary>
+        /// <remarks>This changes from the source data to the output data after conversion.</remarks>
+        public ReadOnlyCollection<byte> Data 
+        {
+            get
+            {
+                if (_data == null)
+                    ReadData();
+                return _data;
+            }
+        }
+
+        /// <summary>
+        /// The duration of the audio data.
+        /// </summary>
+        public TimeSpan Duration
+        {
+            get
+            {
+                if (_format == null)
+                    ReadFormat();
+                return _duration;
+            }
+        }
+
+        /// <summary>
         /// The current format of the audio data.
         /// </summary>
         /// <remarks>This changes from the source format to the output format after conversion.</remarks>
-        public AudioFormat Format { get { return _format; } }
+        public AudioFormat Format
+        {
+            get
+            {
+                if (_format == null)
+                    ReadFormat();
+                return _format;
+            }
+        }
 
         /// <summary>
         /// The current loop length in samples.
         /// </summary>
         /// <remarks>This changes from the source loop length to the output loop length after conversion.</remarks>
-        public int LoopLength { get { return _loopLength; } }
+        public int LoopLength
+        {
+            get
+            {
+                if (_format == null)
+                    ReadFormat();
+                return _loopLength;
+            } 
+        }
 
         /// <summary>
         /// The current loop start location in samples.
         /// </summary>
         /// <remarks>This changes from the source loop start to the output loop start after conversion.</remarks>
-        public int LoopStart { get { return _loopStart; } }
+        public int LoopStart
+        {
+            get
+            {
+                if (_format == null)
+                    ReadFormat();
+                return _loopStart;
+            }
+        }
 
         /// <summary>
         /// Initializes a new instance of AudioContent.
@@ -73,17 +113,6 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
         {
             _fileName = audioFileName;
             _fileType = audioFileType;
-
-            // Must be opened in read mode otherwise it fails to open
-            // read-only files (found in some source control systems)
-            using (var fs = new FileStream(audioFileName, FileMode.Open, FileAccess.Read))
-            {
-                _data = new byte[fs.Length];
-                fs.Read(_data, 0, _data.Length);  
-            }
-
-            // Use probe to get the initial format of the file.
-            DefaultAudioProfile.ProbeFormat(audioFileName, out _format, out _duration, out _loopStart, out _loopLength);
         }
 
         /// <summary>
@@ -105,11 +134,37 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
 
         public void SetData(byte[] data, AudioFormat format, TimeSpan duration, int loopStart, int loopLength)
         {
-            _data = data;
+            if (data == null)
+                throw new ArgumentNullException("data");
+            if (format == null)
+                throw new ArgumentNullException("format");
+
+            _data = Array.AsReadOnly(data);
             _format = format;
             _duration = duration;
             _loopStart = loopStart;
             _loopLength = loopLength;
+        }
+
+        private void ReadData()
+        {
+            byte[] data;
+
+            // Must be opened in read mode otherwise it fails to open
+            // read-only files (found in some source control systems)
+            using (var fs = new FileStream(_fileName, FileMode.Open, FileAccess.Read))
+            {
+                data = new byte[fs.Length];
+                fs.Read(data, 0, data.Length);
+            }
+
+            _data = Array.AsReadOnly(data);
+        }
+
+        private void ReadFormat()
+        {
+            // Use probe to get the format of the file.
+            DefaultAudioProfile.ProbeFormat(_fileName, out _format, out _duration, out _loopStart, out _loopLength);
         }
     }
 }
