@@ -89,7 +89,6 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
             int channelCount = 0;
             int sampleRate = 0;
             int format = 0;
-            ulong durationInSamples = 0;
             double durationInSeconds = 0;
 
             try
@@ -109,9 +108,6 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
                             break;
                         case "streams.stream.0.duration":
                             durationInSeconds = double.Parse(kv[1].Trim('"'), numberFormat);
-                            break;
-                        case "streams.stream.0.duration_ts":
-                            durationInSamples = ulong.Parse(kv[1].Trim('"'), numberFormat);
                             break;
                         case "streams.stream.0.channels":
                             channelCount = int.Parse(kv[1].Trim('"'), numberFormat);
@@ -154,7 +150,7 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
 
             // TODO: Extract loop info when it exists from ffprob.
             loopStart = 0;
-            loopLength = (int)durationInSamples;
+            loopLength = int.MaxValue;
         }
 
         public static void ConvertToFormat(AudioContent content, ConversionFormat formatType, ConversionQuality quality, string saveToFile)
