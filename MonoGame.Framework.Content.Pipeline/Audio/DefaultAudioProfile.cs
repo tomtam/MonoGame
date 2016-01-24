@@ -3,6 +3,7 @@
 // file 'LICENSE.txt', which is part of this source code package.
 
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 
@@ -68,6 +69,92 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
             Directory.CreateDirectory(Path.GetDirectoryName(outputFileName));
 
             ConvertToFormat(content, targetFormat, quality, outputFileName);
+        }
+
+        public static void ProbeFormat(string sourceFile, out AudioFormat audioFormat, out TimeSpan duration, out int loopStart, out int loopLength)
+        {
+            string ffprobeStdout, ffprobeStderr;
+            var ffprobeExitCode = ExternalTool.Run(
+                "ffprobe",
+                string.Format("-i \"{0}\" -show_entries streams -v quiet -of flat", sourceFile),
+                out ffprobeStdout,
+                out ffprobeStderr);
+            if (ffprobeExitCode != 0)
+                throw new InvalidOperationException("ffprobe exited with non-zero exit code.");
+
+            // Set default values if information is not available.
+            int averageBytesPerSecond = 0;
+            int bitsPerSample = 0;
+            int blockAlign = 0;
+            int channelCount = 0;
+            int sampleRate = 0;
+            int format = 0;
+            ulong durationInSamples = 0;
+            double durationInSeconds = 0;
+
+            try
+            {
+                var numberFormat = CultureInfo.InvariantCulture.NumberFormat;
+                foreach (var line in ffprobeStdout.Split(new[] {'\r', '\n', '\0'}, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var kv = line.Split(new[] {'='}, 2);
+
+                    switch (kv[0])
+                    {
+                        case "streams.stream.0.sample_rate":
+                            sampleRate = int.Parse(kv[1].Trim('"'), numberFormat);
+                            break;
+                        case "streams.stream.0.bits_per_sample":
+                            bitsPerSample = int.Parse(kv[1].Trim('"'), numberFormat);
+                            break;
+                        case "streams.stream.0.duration":
+                            durationInSeconds = double.Parse(kv[1].Trim('"'), numberFormat);
+                            break;
+                        case "streams.stream.0.duration_ts":
+                            durationInSamples = ulong.Parse(kv[1].Trim('"'), numberFormat);
+                            break;
+                        case "streams.stream.0.channels":
+                            channelCount = int.Parse(kv[1].Trim('"'), numberFormat);
+                            break;
+                        case "streams.stream.0.bit_rate":
+                            averageBytesPerSecond = (int.Parse(kv[1].Trim('"'), numberFormat)/8);
+                            break;
+                        case "streams.stream.0.codec_tag":
+                        {
+                            var hex = kv[1].Substring(3, kv[1].Length - 4);
+                            format = int.Parse(hex, NumberStyles.HexNumber);
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Failed to parse ffprobe output.", ex);
+            }
+
+            // Calculate block alignment... it may only be valid if 
+            // ffprob returns a bits per sample value.
+            {
+                // Block alignment value is the number of bytes in an atomic unit (that is, a block) of audio for a particular format. For Pulse Code Modulation (PCM) formats, the formula for calculating block alignment is as follows: 
+                //  - Block Alignment = Bytes per Sample x Number of Channels
+                // For example, the block alignment value for 16-bit PCM format mono audio is 2 (2 bytes per sample x 1 channel). For 16-bit PCM format stereo audio, the block alignment value is 4.
+                // https://msdn.microsoft.com/en-us/library/system.speech.audioformat.speechaudioformatinfo.blockalign(v=vs.110).aspx
+                blockAlign = (bitsPerSample / 8) * channelCount;
+            }
+
+            duration = TimeSpan.FromSeconds(durationInSeconds);
+            audioFormat = new AudioFormat(
+                averageBytesPerSecond,
+                bitsPerSample,
+                blockAlign,
+                channelCount,
+                format,
+                sampleRate);
+
+            // TODO: Extract loop info when it exists from ffprob.
+            loopStart = 0;
+            loopLength = (int)durationInSamples;
         }
 
         public static void ConvertToFormat(AudioContent content, ConversionFormat formatType, ConversionQuality quality, string saveToFile)
@@ -164,81 +251,11 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
                         fs.Write(rawData, 0, rawData.Length);
                 }
 
-                string ffprobeStdout, ffprobeStderr;
-                var ffprobeExitCode = ExternalTool.Run(
-                    "ffprobe",
-                    string.Format("-i \"{0}\" -show_entries streams -v quiet -of flat", temporarySource),
-                    out ffprobeStdout,
-                    out ffprobeStderr);
-                if (ffprobeExitCode != 0)
-                    throw new InvalidOperationException("ffprobe exited with non-zero exit code.");
-
-                // Set default values if information is not available.
-                int averageBytesPerSecond = 0;
-                int bitsPerSample = 0;
-                int blockAlign = 0;
-                int channelCount = 0;
-                int sampleRate = 0;
-                double durationInSeconds = 0;
-
-                var numberFormat = System.Globalization.CultureInfo.InvariantCulture.NumberFormat;
-                foreach (var line in ffprobeStdout.Split(new[] { '\r', '\n', '\0' }, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    var kv = line.Split(new[] { '=' }, 2);
-
-                    switch (kv[0])
-                    {
-                        case "streams.stream.0.sample_rate":
-                            sampleRate = int.Parse(kv[1].Trim('"'), numberFormat);
-                            break;
-                        case "streams.stream.0.bits_per_sample":
-                            bitsPerSample = int.Parse(kv[1].Trim('"'), numberFormat);
-                            break;
-                        case "streams.stream.0.duration":
-                            durationInSeconds = double.Parse(kv[1].Trim('"'), numberFormat);
-                            break;
-                        case "streams.stream.0.channels":
-                            channelCount = int.Parse(kv[1].Trim('"'), numberFormat);
-                            break;
-                        case "streams.stream.0.bit_rate":
-                            averageBytesPerSecond = (int.Parse(kv[1].Trim('"'), numberFormat) / 8);
-                            break;
-                    }
-                }
-
-                // Calculate blockAlign.
-                switch (formatType)
-                {
-                    case ConversionFormat.Pcm:
-                        // Block alignment value is the number of bytes in an atomic unit (that is, a block) of audio for a particular format. For Pulse Code Modulation (PCM) formats, the formula for calculating block alignment is as follows: 
-                        //  - Block Alignment = Bytes per Sample x Number of Channels
-                        // For example, the block alignment value for 16-bit PCM format mono audio is 2 (2 bytes per sample x 1 channel). For 16-bit PCM format stereo audio, the block alignment value is 4.
-                        // https://msdn.microsoft.com/en-us/library/system.speech.audioformat.speechaudioformatinfo.blockalign(v=vs.110).aspx
-                        blockAlign = (bitsPerSample / 8) * channelCount;
-                        break;
-                    default:
-                        // blockAlign is not available from ffprobe (and may or may not
-                        // be relevant for non-PCM formats anyway)
-                        break;
-                }
-
-
-                var duration = TimeSpan.FromSeconds(durationInSeconds);
-                var audioFormat = new AudioFormat(
-                    averageBytesPerSecond,
-                    bitsPerSample,
-                    blockAlign,
-                    channelCount,
-                    format,
-                    sampleRate);
-
-                // Loop start and length in number of samples. Defaults to entire sound
-                var loopStart = 0;
-                var loopLength = 0;
-                if (bitsPerSample > 0 && channelCount > 0)
-                    loopLength = rawData.Length / ((bitsPerSample / 8) * channelCount);
-                else
-                    loopLength = 0;
+                // Use probe to get the final format and information on the converted file.
+                AudioFormat audioFormat;
+                TimeSpan duration;
+                int loopStart, loopLength;
+                ProbeFormat(temporaryOutput, out audioFormat, out duration, out loopStart, out loopLength);
 
                 content.SetData(rawData, audioFormat, duration, loopStart, loopLength);
             }
