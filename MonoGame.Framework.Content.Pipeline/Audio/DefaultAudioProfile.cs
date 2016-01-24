@@ -242,9 +242,6 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
                     fs.Read(rawData, 0, rawData.Length);
                 }
 
-                // Replace the source data with the converted data.
-                //_data = rawData;
-
                 if (saveToFile != null)
                 {
                     using (var fs = new FileStream(saveToFile, FileMode.Create, FileAccess.Write))
