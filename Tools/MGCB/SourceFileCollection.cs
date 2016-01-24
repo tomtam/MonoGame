@@ -14,6 +14,14 @@ namespace MGCB
     {
         public GraphicsProfile Profile { get; set; }
 
+        [XmlElement("Platform")]
+        public string PlatformString
+        {
+            get { return Platform.Name; }
+            set { Platform = TargetPlatform.GetPlatform(value); }
+        }
+
+        [XmlIgnore]
         public TargetPlatform Platform { get; set; }
 
         public string Config { get; set; }
