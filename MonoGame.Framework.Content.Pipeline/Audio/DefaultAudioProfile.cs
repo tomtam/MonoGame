@@ -153,6 +153,32 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
             loopLength = int.MaxValue;
         }
 
+        public static void WritePcmFile(AudioContent content, string saveToFile)
+        {
+            var temporarySource = Path.GetTempFileName();
+
+            try
+            {
+                File.WriteAllBytes(temporarySource, content.Data.ToArray());
+
+                string ffmpegStdout, ffmpegStderr;
+                var ffmpegExitCode = ExternalTool.Run(
+                    "ffmpeg",
+                    string.Format(
+                        "-y -i \"{0}\" -vn -c:a pcm_s16le -b:a 192000 -f:a wav -strict experimental \"{1}\"",
+                        temporarySource,
+                        saveToFile),
+                    out ffmpegStdout,
+                    out ffmpegStderr);
+                if (ffmpegExitCode != 0)
+                    throw new InvalidOperationException("ffmpeg exited with non-zero exit code: \n" + ffmpegStdout + "\n" + ffmpegStderr);
+            }
+            finally
+            {
+                ExternalTool.DeleteFile(temporarySource);
+            }            
+        }
+
         public static void ConvertToFormat(AudioContent content, ConversionFormat formatType, ConversionQuality quality, string saveToFile)
         {
             var temporarySource = Path.GetTempFileName();
