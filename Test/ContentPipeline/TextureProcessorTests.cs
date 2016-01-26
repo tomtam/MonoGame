@@ -35,7 +35,7 @@ namespace MonoGame.Tests.ContentPipeline
         [Test]
         public void ColorKey()
         {
-            var context = new TestProcessorContext(TargetPlatform.Windows, "dummy.xnb");
+            var context = new TestProcessorContext(TargetPlatform.GetPlatform("Windows"), "dummy.xnb");
 
             var processor = new TextureProcessor
             {
@@ -71,7 +71,7 @@ namespace MonoGame.Tests.ContentPipeline
         [Test]
         public void Mipmap()
         {
-            var context = new TestProcessorContext(TargetPlatform.Windows, "dummy.xnb");
+            var context = new TestProcessorContext(TargetPlatform.GetPlatform("Windows"), "dummy.xnb");
 
             var processor = new TextureProcessor
             {
@@ -117,7 +117,7 @@ namespace MonoGame.Tests.ContentPipeline
         [Test]
         public void ResizePowerOfTwo()
         {
-            var context = new TestProcessorContext(TargetPlatform.Windows, "dummy.xnb");
+            var context = new TestProcessorContext(TargetPlatform.GetPlatform("Windows"), "dummy.xnb");
 
             var processor = new TextureProcessor
             {
@@ -150,9 +150,9 @@ namespace MonoGame.Tests.ContentPipeline
         }
 
 #if !XNA
-        void CompressDefault<T>(TargetPlatform platform, Color color)
+        void CompressDefault<T>(string platform, Color color)
         {
-            var context = new TestProcessorContext(platform, "dummy.xnb");
+            var context = new TestProcessorContext(TargetPlatform.GetPlatform(platform), "dummy.xnb");
 
             var processor = new TextureProcessor
             {
@@ -180,43 +180,43 @@ namespace MonoGame.Tests.ContentPipeline
         [Test]
         public void CompressDefaultWindowsOpaque()
         {
-            CompressDefault<Dxt1BitmapContent>(TargetPlatform.Windows, Color.Red);
+            CompressDefault<Dxt1BitmapContent>("Windows", Color.Red);
         }
 
         [Test]
         public void CompressDefaultWindowsCutOut()
         {
-            CompressDefault<Dxt3BitmapContent>(TargetPlatform.Windows, Color.Transparent);
+            CompressDefault<Dxt3BitmapContent>("Windows", Color.Transparent);
         }
 
         [Test]
         public void CompressDefaultWindowsAlpha()
         {
-            CompressDefault<Dxt5BitmapContent>(TargetPlatform.Windows, Color.Red * 0.5f);
+            CompressDefault<Dxt5BitmapContent>("Windows", Color.Red * 0.5f);
         }
 
         [Test]
         public void CompressDefaultiOSOpaque()
         {
-            CompressDefault<PvrtcRgb4BitmapContent>(TargetPlatform.iOS, Color.Red);
+            CompressDefault<PvrtcRgb4BitmapContent>("iOS", Color.Red);
         }
 
         [Test]
         public void CompressDefaultiOSAlpha()
         {
-            CompressDefault<PvrtcRgba4BitmapContent>(TargetPlatform.iOS, Color.Red * 0.5f);
+            CompressDefault<PvrtcRgba4BitmapContent>("iOS", Color.Red * 0.5f);
         }
 
         [Test]
         public void CompressDefaultAndroidOpaque()
         {
-            CompressDefault<Etc1BitmapContent>(TargetPlatform.Android, Color.Red);
+            CompressDefault<Etc1BitmapContent>("Android", Color.Red);
         }
 
         [Test]
         public void CompressDefaultAndroidAlpha()
         {
-            CompressDefault<PixelBitmapContent<Bgra4444>>(TargetPlatform.Android, Color.Red * 0.5f);
+            CompressDefault<PixelBitmapContent<Bgra4444>>("Android", Color.Red * 0.5f);
         }
 #endif
     }

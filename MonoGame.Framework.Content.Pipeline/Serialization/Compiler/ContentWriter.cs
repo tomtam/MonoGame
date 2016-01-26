@@ -38,24 +38,6 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Serialization.Compiler
         Stream outputStream;
         Stream bodyStream;
 
-        // This array must remain in sync with TargetPlatform
-        static char[] targetPlatformIdentifiers = new[]
-        {
-            'w', // Windows (DirectX)
-            'x', // Xbox360
-            'm', // WindowsPhone
-            'i', // iOS
-            'a', // Android
-            'd', // DesktopGL
-            'X', // MacOSX
-            'W', // WindowsStoreApp
-            'n', // NativeClient
-            'p', // PlayStationMobile
-            'M', // WindowsPhone8
-            'r', // RaspberryPi
-            'P', // PlayStation4
-        };
-
         /// <summary>
         /// Gets the content build target platform.
         /// </summary>
@@ -195,7 +177,7 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Serialization.Compiler
             Write('X');
             Write('N');
             Write('B');
-            Write(targetPlatformIdentifiers[(int)targetPlatform]);
+            Write(targetPlatform.Identifier);
             Write(XnbFormatVersion);
             // We cannot use LZX compression, so we use the public domain LZ4 compression. Use one of the spare bits in the flags byte to specify LZ4.
             byte flags = (byte)((targetProfile == GraphicsProfile.HiDef ? HiDefContent : (byte)0) | (compressContent ? ContentCompressedLz4 : (byte)0));

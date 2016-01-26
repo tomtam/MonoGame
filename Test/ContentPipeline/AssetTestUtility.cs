@@ -19,7 +19,7 @@ namespace MonoGame.Tests.ContentPipeline
         {
 #if !WINDOWS || DIRECTX || XNA
             var effectProcessor = new EffectProcessor();
-            var context = new TestProcessorContext(TargetPlatform.Windows, "notused.xnb");
+            var context = new TestProcessorContext(TargetPlatform.GetPlatform("Windows"), "notused.xnb");
             var effectPath = Paths.Effect(pathParts);
             var compiledEffect = effectProcessor.Process(new EffectContent
             {

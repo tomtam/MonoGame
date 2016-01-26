@@ -97,7 +97,7 @@ namespace MonoGame.Tests.ContentPipeline
                                 false, Directory.GetCurrentDirectory(), "referenceRelocationPath" });
 #else
             var compiler = new ContentCompiler();
-            compiler.Compile(xnbStream, result, TargetPlatform.Windows, GraphicsProfile.Reach, 
+            compiler.Compile(xnbStream, result, TargetPlatform.GetPlatform("Windows"), GraphicsProfile.Reach, 
                                 false, "rootDirectory", "referenceRelocationPath");
 #endif
 

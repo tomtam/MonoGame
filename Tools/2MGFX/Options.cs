@@ -13,7 +13,7 @@ namespace TwoMGFX
         public string OutputFile = string.Empty;
 
         [CommandLineParser.ProfileName]
-        public ShaderProfile Profile = ShaderProfile.OpenGL;
+        public ShaderProfile Profile = ShaderProfile.GetProfile("OpenGL");
 
         [CommandLineParser.Name("Debug", "\t\t - Include extra debug information in the compiled effect.")]
         public bool Debug;

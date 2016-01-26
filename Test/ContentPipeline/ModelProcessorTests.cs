@@ -81,7 +81,7 @@ namespace MonoGame.Tests.ContentPipeline
         {
             var input = CreateBasicMesh();
 
-            var processorContext = new TestProcessorContext(TargetPlatform.Windows, "dummy.xnb");
+            var processorContext = new TestProcessorContext(TargetPlatform.GetPlatform("Windows"), "dummy.xnb");
             var processor = new ModelProcessor
             {
                 RotationX = 10, 
@@ -267,7 +267,7 @@ namespace MonoGame.Tests.ContentPipeline
                 input.Animations.Add(anim.Name, anim);
             }
 
-            var processorContext = new TestProcessorContext(TargetPlatform.Windows, "dummy.xnb");
+            var processorContext = new TestProcessorContext(TargetPlatform.GetPlatform("Windows"), "dummy.xnb");
             var processor = new ModelProcessor
             {
                 DefaultEffect = MaterialProcessorDefaultEffect.SkinnedEffect,                
