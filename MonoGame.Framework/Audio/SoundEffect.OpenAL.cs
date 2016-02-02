@@ -31,7 +31,7 @@ namespace Microsoft.Xna.Framework.Audio
 
         internal OALSoundBuffer SoundBuffer;
 
-		internal float Rate { get; set; }
+        internal float Rate { get; set; }
 
         internal int Size { get; set; }
 

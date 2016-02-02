@@ -11,6 +11,12 @@ namespace TwoMGFX
     {
         public static int Main(string[] args)
         {
+            if (!Environment.Is64BitProcess)
+            {
+                Console.Error.WriteLine("The MonoGame content tools only work on a 64bit OS.");
+                return -1;
+            }
+
             var options = new Options();
             var parser = new CommandLineParser(options);
             parser.Title = "2MGFX - The MonoGame Effect compiler.";
