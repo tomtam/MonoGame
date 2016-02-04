@@ -40,6 +40,7 @@ purpose and non-infringement.
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Reflection;
@@ -49,6 +50,7 @@ using System.Windows.Forms;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Input.Touch;
+using Microsoft.Xna.Framework.Properties;
 using Microsoft.Xna.Framework.Windows;
 using SharpDX.Multimedia;
 using SharpDX.RawInput;
@@ -374,6 +376,18 @@ namespace MonoGame.Framework
         internal void Initialize(int width, int height)
         {            
             _form.ClientSize = new Size(width, height);
+
+#if DEBUG
+            // Position the game window at the same location it was at
+            // when we last stopped debugging.
+            if (Debugger.IsAttached && Settings.Default.RestoreWindow)
+            {
+                _form.StartPosition = FormStartPosition.Manual;
+                _form.Location = Settings.Default.RestoreWindowDesktopLocation;
+                //_form.SetDesktopLocation(loc.X, loc.Y);
+            }
+#endif
+
             _form.Show();
         }
 

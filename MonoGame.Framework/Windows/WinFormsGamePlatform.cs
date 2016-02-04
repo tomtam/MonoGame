@@ -73,6 +73,7 @@ using System.Drawing;
 using Microsoft.Xna.Framework;
 using System.Windows.Forms;
 using Microsoft.Xna.Framework.Input;
+using Microsoft.Xna.Framework.Properties;
 using XnaKeys = Microsoft.Xna.Framework.Input.Keys;
 
 
@@ -137,6 +138,18 @@ namespace MonoGame.Framework
         public override void RunLoop()
         {
             _window.RunLoop();
+
+#if DEBUG
+            // Store the window position at the time we stop debugging.
+            if (Debugger.IsAttached)
+            {
+                Settings.Default.RestoreWindow = true;
+                Settings.Default.RestoreWindowDesktopLocation = _window._form.DesktopLocation;
+                Settings.Default.RestoreWindowDesktopSize = _window._form.DesktopBounds.Size;
+
+                Settings.Default.Save();
+            }
+#endif
         }
 
         public override void StartRunLoop()
