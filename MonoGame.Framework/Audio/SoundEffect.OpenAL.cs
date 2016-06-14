@@ -12,7 +12,11 @@ using MonoMac.AVFoundation;
 using MonoMac.Foundation;
 using MonoMac.OpenAL;
 #elif OPENAL
+#if GLES || MONOMAC
 using OpenTK.Audio.OpenAL;
+#else 
+using OpenAL;
+#endif
 #if IOS || MONOMAC
 using AudioToolbox;
 using AudioUnit;
@@ -25,31 +29,11 @@ namespace Microsoft.Xna.Framework.Audio
 {
     public sealed partial class SoundEffect : IDisposable
     {
-#if DESKTOPGL || ANGLE
+        internal const int MAX_PLAYING_INSTANCES = OpenALSoundController.MAX_NUMBER_OF_SOURCES;
 
-        // These platforms are only limited by memory.
-        internal const int MAX_PLAYING_INSTANCES = int.MaxValue;
+        internal OALSoundBuffer SoundBuffer;
 
-#elif MONOMAC
-
-        // Reference: http://stackoverflow.com/questions/3894044/maximum-number-of-openal-sound-buffers-on-iphone
-        internal const int MAX_PLAYING_INSTANCES = 256;
-
-#elif IOS
-
-        // Reference: http://stackoverflow.com/questions/3894044/maximum-number-of-openal-sound-buffers-on-iphone
-        internal const int MAX_PLAYING_INSTANCES = 32;
-
-#elif ANDROID
-
-        // Set to the same as OpenAL on iOS
-        internal const int MAX_PLAYING_INSTANCES = 32;
-
-#endif
-
-        internal byte[] _data;
-
-		internal float Rate { get; set; }
+        internal float Rate { get; set; }
 
         internal int Size { get; set; }
 
@@ -59,6 +43,8 @@ namespace Microsoft.Xna.Framework.Audio
 
         private void PlatformLoadAudioStream(Stream s)
         {
+            byte[] buffer;
+
 #if OPENAL && !(MONOMAC || IOS)
             
             ALFormat format;
@@ -66,29 +52,9 @@ namespace Microsoft.Xna.Framework.Audio
             int freq;
 
             var stream = s;
-#if ANDROID
-            var needsDispose = false;
-            try
-            {
-                // If seek is not supported (usually an indicator of a stream opened into the AssetManager), then copy
-                // into a temporary MemoryStream.
-                if (!s.CanSeek)
-                {
-                    needsDispose = true;
-                    stream = new MemoryStream();
-                    s.CopyTo(stream);
-                    stream.Position = 0;
-                }
-#endif
-                _data = AudioLoader.Load(stream, out format, out size, out freq);
-#if ANDROID
-            }
-            finally
-            {
-                if (needsDispose)
-                    stream.Dispose();
-            }
-#endif
+
+            buffer = AudioLoader.Load(stream, out format, out size, out freq);
+
             Format = format;
             Size = size;
             Rate = freq;
@@ -105,8 +71,8 @@ namespace Microsoft.Xna.Framework.Audio
                 afs.ParseBytes (audiodata, false);
                 Size = (int)afs.DataByteCount;
 
-                _data = new byte[afs.DataByteCount];
-                Array.Copy (audiodata, afs.DataOffset, _data, 0, afs.DataByteCount);
+                buffer = new byte[afs.DataByteCount];
+                Array.Copy (audiodata, afs.DataOffset, buffer, 0, afs.DataByteCount);
 
                 AudioStreamBasicDescription asbd = afs.DataFormat;
                 int channelsPerFrame = asbd.ChannelsPerFrame;
@@ -141,44 +107,62 @@ namespace Microsoft.Xna.Framework.Audio
             }
 
 #endif
+            // bind buffer
+            SoundBuffer = new OALSoundBuffer();
+            SoundBuffer.BindDataBuffer(buffer, Format, Size, (int)Rate);
         }
 
-        private void PlatformInitialize(byte[] buffer, int sampleRate, AudioChannels channels)
+        private void PlatformInitializePCM(byte[] buffer, int offset, int count, int sampleRate, AudioChannels channels, int loopStart, int loopLength)
         {
-			Rate = (float)sampleRate;
-            Size = (int)buffer.Length;
+            Rate = (float)sampleRate;
+            Size = (int)count;
+            Format = channels == AudioChannels.Stereo ? ALFormat.Stereo16 : ALFormat.Mono16;
 
-#if OPENAL && !(MONOMAC || IOS)
-
-            _data = buffer;
-            Format = (channels == AudioChannels.Stereo) ? ALFormat.Stereo16 : ALFormat.Mono16;
-            return;
-
-#endif
-
-#if MONOMAC || IOS
-
-            //buffer should contain 16-bit PCM wave data
-            short bitsPerSample = 16;
-
-            if ((int)channels <= 1)
-                Format = bitsPerSample == 8 ? ALFormat.Mono8 : ALFormat.Mono16;
-            else
-                Format = bitsPerSample == 8 ? ALFormat.Stereo8 : ALFormat.Stereo16;
-
-            _name = "";
-            _data = buffer;
-
-#endif
+            // bind buffer
+            SoundBuffer = new OALSoundBuffer();
+            SoundBuffer.BindDataBuffer(buffer, Format, Size, (int)Rate);
         }
 
-        private void PlatformInitialize(byte[] buffer, int offset, int count, int sampleRate, AudioChannels channels, int loopStart, int loopLength)
+        private void PlatformInitializeADPCM (byte [] buffer, int offset, int count, int sampleRate, AudioChannels channels, int dataFormat, int loopStart, int loopLength)
         {
-            _duration = GetSampleDuration(buffer.Length, sampleRate, channels);
+            Rate = (float)sampleRate;
+            Size = (int)count;
+            #if DESKTOPGL
+            Format = channels == AudioChannels.Stereo ? ALFormat.StereoMSADPCM : ALFormat.MonoMSADPCM;
+            #else
+            Format = channels == AudioChannels.Stereo ? (ALFormat)0x1303 : (ALFormat)0x1302;
+            #endif
 
-            throw new NotImplementedException();
+            // bind buffer
+            SoundBuffer = new OALSoundBuffer ();
+            SoundBuffer.BindDataBuffer (buffer, Format, Size, (int)Rate, dataFormat);
         }
 
+        private void PlatformInitializeFormat(byte[] buffer, int format, int sampleRate, int channels, int blockAlignment, int loopStart, int loopLength)
+        {
+            // We need to decode MSADPCM.
+            var supportsADPCM = OpenALSoundController.GetInstance.SupportsADPCM;
+            if (format == 2 && !supportsADPCM)
+            {
+                using (var stream = new MemoryStream(buffer))
+                using (var reader = new BinaryReader(stream))
+                {
+                    buffer = MSADPCMToPCM.MSADPCM_TO_PCM (reader, (short)channels, (short)blockAlignment);
+                    format = 1;
+                }
+            }
+
+            if (!supportsADPCM && format != 1)
+                throw new NotSupportedException("Unsupported wave format!");
+
+            if (supportsADPCM && format == 2) {
+                PlatformInitializeADPCM (buffer, 0, buffer.Length, sampleRate, (AudioChannels)channels, blockAlignment, loopStart, loopLength);
+            } else {
+                PlatformInitializePCM (buffer, 0, buffer.Length, sampleRate, (AudioChannels)channels, loopStart, loopLength);
+            }
+            _duration = TimeSpan.FromSeconds (SoundBuffer.Duration);
+        }
+        
         #endregion
 
         #region Additional SoundEffect/SoundEffectInstance Creation Methods
@@ -186,7 +170,6 @@ namespace Microsoft.Xna.Framework.Audio
         private void PlatformSetupInstance(SoundEffectInstance inst)
         {
             inst.InitializeSound();
-            inst.BindDataBuffer(_data, Format, Size, (int)Rate);
         }
 
         #endregion
@@ -195,7 +178,11 @@ namespace Microsoft.Xna.Framework.Audio
 
         private void PlatformDispose(bool disposing)
         {
-            // A no-op for OpenAL
+            if (SoundBuffer != null)
+            {
+                SoundBuffer.Dispose();
+                SoundBuffer = null;
+            }
         }
 
         #endregion

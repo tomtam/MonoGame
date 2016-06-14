@@ -4,8 +4,8 @@
 
 using System;
 using System.IO;
-using MonoGame.Utilities;
-using OpenTK.Audio;
+using Microsoft.Xna.Framework.Audio;
+using OpenAL;
 
 namespace Microsoft.Xna.Framework.Media
 {

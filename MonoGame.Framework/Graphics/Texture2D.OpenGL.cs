@@ -30,21 +30,25 @@ using Foundation;
 #if MONOMAC
 #if PLATFORM_MACOS_LEGACY
 using MonoMac.OpenGL;
-using GLPixelFormat = MonoMac.OpenGL.PixelFormat;
+using GLPixelFormat = MonoMac.OpenGL.All;
+using PixelFormat = MonoMac.OpenGL.PixelFormat;
 #else
 using OpenTK.Graphics.OpenGL;
-using GLPixelFormat = OpenTK.Graphics.OpenGL.PixelFormat;
+using GLPixelFormat = OpenTK.Graphics.OpenGL.All;
+using PixelFormat = OpenTK.Graphics.OpenGL.PixelFormat;
 #endif
 #endif
 
 #if DESKTOPGL
-using OpenTK.Graphics.OpenGL;
-using GLPixelFormat = OpenTK.Graphics.OpenGL.PixelFormat;
+using OpenGL;
+using GLPixelFormat = OpenGL.PixelFormat;
+using PixelFormat = OpenGL.PixelFormat;
 #endif
 
 #if GLES
 using OpenTK.Graphics.ES20;
-using GLPixelFormat = OpenTK.Graphics.ES20.PixelFormat;
+using GLPixelFormat = OpenTK.Graphics.ES20.All;
+using PixelFormat = OpenTK.Graphics.ES20.PixelFormat;
 #endif
 
 #if ANDROID
@@ -73,7 +77,7 @@ namespace Microsoft.Xna.Framework.Graphics
 
                 format.GetGLFormat(GraphicsDevice, out glInternalFormat, out glFormat, out glType);
 
-                if (glFormat == (GLPixelFormat)All.CompressedTextureFormats)
+                if (glFormat == (PixelFormat)GLPixelFormat.CompressedTextureFormats)
                 {
                     var imageSize = 0;
                     switch (format)
@@ -179,16 +183,16 @@ namespace Microsoft.Xna.Framework.Graphics
 
                     GL.BindTexture(TextureTarget.Texture2D, this.glTexture);
                     GraphicsExtensions.CheckGLError();
-                    if (glFormat == (GLPixelFormat)All.CompressedTextureFormats)
+                    if (glFormat == (PixelFormat)GLPixelFormat.CompressedTextureFormats)
                     {
                         if (rect.HasValue)
                         {
-                            GL.CompressedTexSubImage2D(TextureTarget.Texture2D, level, x, y, w, h, glFormat, data.Length - startBytes, dataPtr);
+                            GL.CompressedTexSubImage2D(TextureTarget.Texture2D, level, x, y, w, h, glFormat, elementCount - startBytes, dataPtr);
                             GraphicsExtensions.CheckGLError();
                         }
                         else
                         {
-                            GL.CompressedTexImage2D(TextureTarget.Texture2D, level, glInternalFormat, w, h, 0, data.Length - startBytes, dataPtr);
+                            GL.CompressedTexImage2D(TextureTarget.Texture2D, level, glInternalFormat, w, h, 0, elementCount - startBytes, dataPtr);
                             GraphicsExtensions.CheckGLError();
                         }
                     }
@@ -269,7 +273,7 @@ namespace Microsoft.Xna.Framework.Graphics
 #else
             GL.BindTexture(TextureTarget.Texture2D, this.glTexture);
 
-            if (glFormat == (GLPixelFormat)All.CompressedTextureFormats)
+            if (glFormat == (PixelFormat)GLPixelFormat.CompressedTextureFormats)
             {
                 throw new NotImplementedException();
             }
@@ -515,7 +519,7 @@ namespace Microsoft.Xna.Framework.Graphics
 
         private void PlatformSaveAsJpeg(Stream stream, int width, int height)
         {
-#if MONOMAC || WINDOWS
+#if DESKTOPGL || MONOMAC
 			SaveAsImage(stream, width, height, ImageFormat.Jpeg);
 #elif ANDROID
             SaveAsImage(stream, width, height, Bitmap.CompressFormat.Jpeg);
@@ -526,18 +530,16 @@ namespace Microsoft.Xna.Framework.Graphics
 
         private void PlatformSaveAsPng(Stream stream, int width, int height)
         {
-#if MONOMAC || WINDOWS || IOS
-            var pngWriter = new PngWriter();
-            pngWriter.Write(this, stream);
-#elif ANDROID
+#if ANDROID
             SaveAsImage(stream, width, height, Bitmap.CompressFormat.Png);
 #else
-            throw new NotImplementedException();
+            var pngWriter = new PngWriter();
+            pngWriter.Write(this, stream);
 #endif
         }
 
-#if MONOMAC || WINDOWS
-		private void SaveAsImage(Stream stream, int width, int height, ImageFormat format)
+#if DESKTOPGL || MONOMAC
+        internal void SaveAsImage(Stream stream, int width, int height, ImageFormat format)
 		{
 			if (stream == null)
 			{
