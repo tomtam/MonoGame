@@ -11,6 +11,7 @@ using System.Linq;
 using SharpFont;
 using System.Runtime.InteropServices;
 using MonoGame.Framework.Content.Pipeline.Builder;
+using Microsoft.Xna.Framework.Content.Pipeline.Utilities;
 using Glyph = Microsoft.Xna.Framework.Content.Pipeline.Graphics.Glyph;
 #if WINDOWS
 using Microsoft.Win32;
@@ -23,6 +24,11 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Processors
     {
         [DefaultValue(typeof(TextureProcessorOutputFormat), "Compressed")]
         public virtual TextureProcessorOutputFormat TextureFormat { get; set; }
+
+        [DisplayName("Dump Output")]
+        [Description("If enabled, dumps a PNG of the resulting sheet to the output directory.")]
+        [DefaultValue(false)]
+        public bool DumpOutput { get; set; }
 
         public FontDescriptionProcessor()
         {
@@ -123,7 +129,12 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Processors
 						output.Kerning.Add(new Vector3(0, texRect.Width, 0));
 				}
 
-                output.Texture.Faces[0].Add(face);
+                output.Texture.Faces[0] = new MipmapChain(face);
+
+                if (DumpOutput)
+                {
+                    output.Texture.Dump(context.OutputFilename, true, true);
+                }
 
                 if (GraphicsUtil.IsCompressedTextureFormat(format))
                 {
