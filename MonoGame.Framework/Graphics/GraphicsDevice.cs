@@ -51,6 +51,7 @@ namespace Microsoft.Xna.Framework.Graphics
         private IndexBuffer _indexBuffer;
         private bool _indexBufferDirty;
 
+        private readonly RenderTargetBinding[] _tempRenderTargetBinding = new RenderTargetBinding[1];
         private readonly RenderTargetBinding[] _currentRenderTargetBindings = new RenderTargetBinding[4];
         private int _currentRenderTargetCount;
 
@@ -285,7 +286,7 @@ namespace Microsoft.Xna.Framework.Graphics
             ScissorRectangle = _viewport.Bounds;
 
             // Set the default render target.
-            ApplyRenderTargets(null);
+            ApplyRenderTargets(null, 0);
         }
 
         public RasterizerState RasterizerState
@@ -529,7 +530,7 @@ namespace Microsoft.Xna.Framework.Graphics
 
             // Update the back buffer.
             CreateSizeDependentResources();
-            ApplyRenderTargets(null);
+            ApplyRenderTargets(null, 0);
         }
 #endif
 
@@ -652,29 +653,41 @@ namespace Microsoft.Xna.Framework.Graphics
             }
         }
 
-		public void SetRenderTarget(RenderTarget2D renderTarget)
-		{
-			if (renderTarget == null)
-                SetRenderTargets(null);
-			else
-				SetRenderTargets(new RenderTargetBinding(renderTarget));
-		}
+        public void SetRenderTarget(RenderTarget2D renderTarget)
+        {
+            if (renderTarget == null)
+                SetRenderTargets(null, 0);
+            else
+            {
+                _tempRenderTargetBinding[0] = new RenderTargetBinding(renderTarget);
+                SetRenderTargets(_tempRenderTargetBinding, 1);
+            }
+        }
 
         public void SetRenderTarget(RenderTargetCube renderTarget, CubeMapFace cubeMapFace)
         {
             if (renderTarget == null)
-                SetRenderTarget(null);
+                SetRenderTargets(null, 0);
             else
-                SetRenderTargets(new RenderTargetBinding(renderTarget, cubeMapFace));
+            {
+                _tempRenderTargetBinding[0] = new RenderTargetBinding(renderTarget, cubeMapFace);
+                SetRenderTargets(_tempRenderTargetBinding, 1);
+            }
         }
 
-		public void SetRenderTargets(params RenderTargetBinding[] renderTargets)
-		{
+        [Obsolete("This method generates garbage and is only here for XNA compatibility.  Prefer using SetRenderTargets(RenderTargetBinding[] renderTargets, int count).")]
+        public void SetRenderTargets(params RenderTargetBinding[] renderTargets)
+        {
+            SetRenderTargets(renderTargets, renderTargets.Length);
+        }
+
+        public void SetRenderTargets(RenderTargetBinding[] renderTargets, int count)
+        {
             // Avoid having to check for null and zero length.
             var renderTargetCount = 0;
             if (renderTargets != null)
             {
-                renderTargetCount = renderTargets.Length;
+                renderTargetCount = count;
                 if (renderTargetCount == 0)
                 {
                     renderTargets = null;
@@ -699,7 +712,7 @@ namespace Microsoft.Xna.Framework.Graphics
                     return;
             }
 
-            ApplyRenderTargets(renderTargets);
+            ApplyRenderTargets(renderTargets, renderTargetCount);
 
             if (renderTargetCount == 0)
             {
@@ -717,7 +730,7 @@ namespace Microsoft.Xna.Framework.Graphics
             }
         }
 
-        internal void ApplyRenderTargets(RenderTargetBinding[] renderTargets)
+        internal void ApplyRenderTargets(RenderTargetBinding[] renderTargets, int renderTargetCount)
         {
             var clearTarget = false;
 
@@ -741,8 +754,8 @@ namespace Microsoft.Xna.Framework.Graphics
 			else
 			{
                 // Copy the new bindings.
-                Array.Copy(renderTargets, _currentRenderTargetBindings, renderTargets.Length);
-                _currentRenderTargetCount = renderTargets.Length;
+                Array.Copy(renderTargets, _currentRenderTargetBindings, renderTargetCount);
+                _currentRenderTargetCount = renderTargetCount;
 
                 var renderTarget = PlatformApplyRenderTargets();
 
@@ -766,13 +779,14 @@ namespace Microsoft.Xna.Framework.Graphics
                 Clear(DiscardColor);
         }
 
-		public RenderTargetBinding[] GetRenderTargets()
-		{
+        [Obsolete("This method generates garbage and is only here for XNA compatibility.  Prefer using GetRenderTargets(RenderTargetBinding[] outTargets).")]
+        public RenderTargetBinding[] GetRenderTargets()
+        {
             // Return a correctly sized copy our internal array.
             var bindings = new RenderTargetBinding[_currentRenderTargetCount];
             Array.Copy(_currentRenderTargetBindings, bindings, _currentRenderTargetCount);
             return bindings;
-		}
+        }
 
         public void GetRenderTargets(RenderTargetBinding[] outTargets)
         {

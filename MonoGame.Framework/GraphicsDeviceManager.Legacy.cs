@@ -232,7 +232,7 @@ namespace Microsoft.Xna.Framework
 #endif
 			// Update the back buffer.
 			_graphicsDevice.CreateSizeDependentResources();
-            _graphicsDevice.ApplyRenderTargets(null);
+            _graphicsDevice.ApplyRenderTargets(null, 0);
 
 #if WINDOWS_UAP
             ((UAPGameWindow)_game.Window).SetClientSize(_preferredBackBufferWidth, _preferredBackBufferHeight);
@@ -256,7 +256,7 @@ namespace Microsoft.Xna.Framework
 
             // Update the back buffer.
             _graphicsDevice.CreateSizeDependentResources();
-            _graphicsDevice.ApplyRenderTargets(null);
+            _graphicsDevice.ApplyRenderTargets(null, 0);
 
             ((MonoGame.Framework.WinFormsGamePlatform)_game.Platform).ResetWindowBounds();
 
