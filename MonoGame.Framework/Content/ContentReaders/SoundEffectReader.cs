@@ -10,19 +10,8 @@ namespace Microsoft.Xna.Framework.Content
 {
 	internal class SoundEffectReader : ContentTypeReader<SoundEffect>
 	{
-#if ANDROID
-        static string[] supportedExtensions = new string[] { ".wav", ".mp3", ".ogg", ".mid" };
-#else
-        static string[] supportedExtensions = new string[] { ".wav", ".aiff", ".ac3", ".mp3" };
-#endif
-
-        internal static string Normalize(string fileName)
-        {
-            return Normalize(fileName, supportedExtensions);
-        }
-
-        protected internal override SoundEffect Read(ContentReader input, SoundEffect existingInstance)
-        {         
+		protected internal override SoundEffect Read(ContentReader input, SoundEffect existingInstance)
+		{         
             // XNB format for SoundEffect...
             //            
             // Byte [format size]	Format	WAVEFORMATEX structure
@@ -56,6 +45,8 @@ namespace Microsoft.Xna.Framework.Content
             //var avgBPS = (int)BitConverter.ToUInt16(header, 8);
             var blockAlignment = (int)BitConverter.ToUInt16(header, 12);
             //var bps = (int)BitConverter.ToUInt16(header, 14);
+            // used to be calculated based on bps. This works for ADPCM, too
+            TimeSpan duration = TimeSpan.FromSeconds((float)loopLength / sampleRate);
 
             // Initialize the effect.
             var effect = new SoundEffect(data, format, sampleRate, channels, blockAlignment, durationMs, loopStart, loopLength);

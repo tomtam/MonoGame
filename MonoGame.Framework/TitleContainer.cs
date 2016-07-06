@@ -5,6 +5,7 @@
 using System;
 using System.IO;
 using Microsoft.Xna.Framework.Utilities;
+using MonoGame.Utilities;
 
 namespace Microsoft.Xna.Framework
 {
@@ -46,9 +47,13 @@ namespace Microsoft.Xna.Framework
                 if (stream == null)
                     throw FileNotFoundException(name, null);
             }
+            catch (FileNotFoundException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
-                throw FileNotFoundException(name, ex);
+                throw new FileNotFoundException(name, ex);
             }
 
             return stream;

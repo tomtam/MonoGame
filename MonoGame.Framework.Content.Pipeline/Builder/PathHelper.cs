@@ -3,7 +3,6 @@
 // file 'LICENSE.txt', which is part of this source code package.
 
 using System;
-using System.IO;
 using Microsoft.Xna.Framework.Content.Pipeline;
 
 namespace MonoGame.Framework.Content.Pipeline.Builder
@@ -38,20 +37,6 @@ namespace MonoGame.Framework.Content.Pipeline.Builder
         public static string NormalizeWindows(string path)
         {
             return path.Replace('/', '\\');
-        }
-
-        /// <summary>
-        /// Returns a path string normalized to the current platform standard.
-        /// </summary>
-        public static string NormalizeOS(string path)
-        {
-#if WINRT
-            return NormalizeWindows(path);
-#else
-            path = path.Replace('\\', Path.DirectorySeparatorChar);
-            path = path.Replace('/', Path.DirectorySeparatorChar);
-            return path;
-#endif
         }
 
         /// <summary>

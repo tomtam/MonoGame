@@ -6,17 +6,7 @@ using System;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input.Touch;
 
-#if MONOMAC
-#if PLATFORM_MACOS_LEGACY
-using MonoMac.OpenGL;
-#else
-using OpenGL;
-#endif
-#elif GLES
-using OpenTK.Graphics.ES20;
-#elif OPENGL
-using OpenTK.Graphics.OpenGL;
-#elif WINDOWS_STOREAPP || WINDOWS_UAP
+#if WINDOWS_STOREAPP || WINDOWS_UAP
 using Windows.UI.Xaml.Controls;
 #endif
 
@@ -261,7 +251,15 @@ namespace Microsoft.Xna.Framework
             ((MonoGame.Framework.WinFormsGamePlatform)_game.Platform).ResetWindowBounds();
 
 #elif DESKTOPGL
-            ((OpenTKGamePlatform)_game.Platform).ResetWindowBounds();
+            var displayIndex = Sdl.Window.GetDisplayIndex (SdlGameWindow.Instance.Handle);
+            var displayName = Sdl.Display.GetDisplayName (displayIndex);
+
+            _graphicsDevice.PresentationParameters.BackBufferFormat = _preferredBackBufferFormat;
+            _graphicsDevice.PresentationParameters.BackBufferWidth = _preferredBackBufferWidth;
+            _graphicsDevice.PresentationParameters.BackBufferHeight = _preferredBackBufferHeight;
+            _graphicsDevice.PresentationParameters.DepthStencilFormat = _preferredDepthStencilFormat;
+            _graphicsDevice.PresentationParameters.PresentationInterval = _synchronizedWithVerticalRetrace ? PresentInterval.Default : PresentInterval.Immediate;
+            _graphicsDevice.PresentationParameters.IsFullScreen = _wantFullScreen;
 
             //Set the swap interval based on if vsync is desired or not.
             //See GetSwapInterval for more details
@@ -271,6 +269,12 @@ namespace Microsoft.Xna.Framework
             else
                 swapInterval = 0;
             _graphicsDevice.Context.SwapInterval = swapInterval;
+
+            _graphicsDevice.ApplyRenderTargets (null);
+
+            _game.Platform.BeginScreenDeviceChange (GraphicsDevice.PresentationParameters.IsFullScreen);
+            _game.Platform.EndScreenDeviceChange (displayName, GraphicsDevice.PresentationParameters.BackBufferWidth, GraphicsDevice.PresentationParameters.BackBufferHeight);
+
 #elif MONOMAC
             _graphicsDevice.PresentationParameters.IsFullScreen = _wantFullScreen;
 
@@ -342,7 +346,7 @@ namespace Microsoft.Xna.Framework
 #elif WINDOWS_UAP
 			presentationParameters.DeviceWindowHandle = IntPtr.Zero;
 			presentationParameters.SwapChainPanel = this.SwapChainPanel;
-#elif WINDOWS_STORE
+#elif WINDOWS_STOREAPP
 			// The graphics device can use a XAML panel or a window
 			// to created the default swapchain target.
             if (this.SwapChainBackgroundPanel != null)
@@ -483,15 +487,14 @@ namespace Microsoft.Xna.Framework
         /// <summary>
         /// Gets or sets the boolean which defines how window switches from windowed to fullscreen state.
         /// "Hard" mode(true) is slow to switch, but more effecient for performance, while "soft" mode(false) is vice versa.
-        /// The default value is <c>true</c>. Can only be changed before graphics device is created (in game's constructor).
+        /// The default value is <c>true</c>.
         /// </summary>
         public bool HardwareModeSwitch
         {
             get { return _hardwareModeSwitch; }
             set
             {
-                if (_graphicsDevice == null) _hardwareModeSwitch = value;
-                else throw new InvalidOperationException("This property can only be changed before graphics device is created(in game constructor).");
+                _hardwareModeSwitch = value;
             }
         }
 
