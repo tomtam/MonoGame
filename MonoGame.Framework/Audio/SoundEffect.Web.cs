@@ -22,11 +22,11 @@ namespace Microsoft.Xna.Framework.Audio
             duration = TimeSpan.Zero;
         }
 
-        private void PlatformInitializePCM(byte[] buffer, int offset, int count, int sampleRate, AudioChannels channels, int loopStart, int loopLength)
+        private void PlatformInitializePcm(byte[] buffer, int offset, int count, int sampleRate, AudioChannels channels, int loopStart, int loopLength)
         {
         }
 
-        private void PlatformInitializeFormat(byte[] buffer, int format, int sampleRate, int channels, int blockAlignment, int loopStart, int loopLength)
+        private void PlatformInitializeFormat(byte[] header, byte[] buffer, int bufferSize, int loopStart, int loopLength)
         {
         }
 
@@ -40,6 +40,10 @@ namespace Microsoft.Xna.Framework.Audio
         }
 
         private void PlatformDispose(bool disposing)
+        {
+        }
+
+        internal static void PlatformSetReverbSettings(ReverbSettings reverbSettings)
         {
         }
 
