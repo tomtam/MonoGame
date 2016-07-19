@@ -56,5 +56,17 @@ namespace MonoGame.Framework.Content.Pipeline.Builder
 
             return Normalize(str);
         }
+
+        /// <summary>
+        /// Returns the path string without the trailing extension.
+        /// </summary>
+        public static string RemoveExtension(string path)
+        {
+            var idx = path.IndexOf('.');
+            if (idx != -1)
+                path = path.Remove(idx);
+
+            return path;
+        }
     }
 }
