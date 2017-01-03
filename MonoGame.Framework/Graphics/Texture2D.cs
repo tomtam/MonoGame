@@ -140,8 +140,8 @@ namespace Microsoft.Xna.Framework.Graphics
                 throw new ArgumentException("Texture only has "+_levelCount+" levels", "level");
             if (data == null)
                 throw new ArgumentNullException("data");
-            if ((!rect.HasValue && (data.Length - startIndex < resizedBounds.Width * resizedBounds.Height)) || (rect.HasValue && (rect.Value.Height * rect.Value.Width > data.Length)))
-                throw new ArgumentException("data array is too small");
+            //if ((!rect.HasValue && (data.Length - startIndex < resizedBounds.Width * resizedBounds.Height)) || (rect.HasValue && (rect.Value.Height * rect.Value.Width > data.Length)))
+                //throw new ArgumentException("data array is too small");
             if (elementCount + startIndex > data.Length)
                 throw new ArgumentException("ElementCount must be a valid index in the data array", "elementCount");
             if (arraySlice > 0 && !GraphicsDevice.GraphicsCapabilities.SupportsTextureArrays)

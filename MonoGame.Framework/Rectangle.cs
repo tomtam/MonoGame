@@ -462,6 +462,7 @@ namespace Microsoft.Xna.Framework
             Y += amount.Y;
         }
 
+        /*
         /// <summary>
         /// Changes the <see cref="Location"/> of this <see cref="Rectangle"/>.
         /// </summary>
@@ -471,6 +472,7 @@ namespace Microsoft.Xna.Framework
             X += (int)amount.X;
             Y += (int)amount.Y;
         }
+        */
 
         /// <summary>
         /// Returns a <see cref="String"/> representation of this <see cref="Rectangle"/> in the format:
