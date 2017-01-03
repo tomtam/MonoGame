@@ -99,6 +99,9 @@ namespace Microsoft.Xna.Framework.Graphics
             this._levelCount = mipmap ? CalculateMipLevels(width, height) : 1;
             this.ArraySize = arraySize;
 
+            OriginalWidth = width;
+            OriginalHeight = height;
+
             // Texture will be assigned by the swap chain.
 		    if (type == SurfaceType.SwapChainRenderTarget)
 		        return;
@@ -106,6 +109,9 @@ namespace Microsoft.Xna.Framework.Graphics
             PlatformConstruct(width, height, mipmap, format, type, shared);
         }
 
+        /// <summary>
+        /// The width of the texture surface.
+        /// </summary>
         public int Width
         {
             get
@@ -114,6 +120,9 @@ namespace Microsoft.Xna.Framework.Graphics
             }
         }
 
+        /// <summary>
+        /// The height of the 2D texture surface.
+        /// </summary>
         public int Height
         {
             get
@@ -121,6 +130,19 @@ namespace Microsoft.Xna.Framework.Graphics
                 return height;
             }
         }
+
+        /// <summary>
+        /// An optional original texture size used to account 
+        /// for resized texture data.
+        /// </summary>
+        public int OriginalWidth { get; set; }
+
+        /// <summary>
+        /// An optional original texture size used to account 
+        /// for resized texture data.
+        /// </summary>
+        public int OriginalHeight { get; set; }
+
         /// <summary>
         /// Changes the pixels of the texture
         /// Throws ArgumentNullException if data is null
