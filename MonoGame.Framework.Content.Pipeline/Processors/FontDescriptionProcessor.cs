@@ -90,7 +90,7 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Processors
             // Get the platform specific texture profile.
             var texProfile = TextureProfile.ForPlatform(context.TargetPlatform);
 
-			try {
+            {
 				if (!File.Exists(fontName)) {
 					throw new Exception(string.Format("Could not load {0}", fontName));
 				}
@@ -132,9 +132,6 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Processors
 				}
 
                 output.Texture.Faces[0].Add(face);            
-			}
-			catch(Exception ex) {
-				context.Logger.LogImportantMessage("{0}", ex.ToString());
 			}
 
             if (PremultiplyAlpha)
@@ -250,6 +247,9 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Processors
             s = s.Trim();
 
             var split = s.Split (':');
+            if (split.Length < 2)
+                return String.Empty;
+
             //check font family, fontconfig might return a fallback
             if (split [1].Contains (",")) { //this file defines multiple family names
                 var families = split [1].Split (',');
