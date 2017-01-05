@@ -12,8 +12,10 @@ namespace MonoGame.Tools.Pipeline
 {
     partial class MainWindow : Form, IView
     {
+#pragma warning disable 649
         public EventHandler<EventArgs> RecentChanged;
         public EventHandler<EventArgs> TitleChanged;
+#pragma warning restore 649
         public const string TitleBase = "MonoGame Pipeline Tool";
         public static MainWindow Instance;
 
@@ -62,13 +64,11 @@ namespace MonoGame.Tools.Pipeline
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
             e.Cancel = !PipelineController.Instance.Exit();
-            base.OnClosing(e);
-        }
 
-        public override void Close()
-        {
-            Application.Instance.Quit();
-            base.Close();
+            if (!e.Cancel)
+                Xwt.Application.Exit();
+
+            base.OnClosing(e);
         }
 
         public void ShowContextMenu()
