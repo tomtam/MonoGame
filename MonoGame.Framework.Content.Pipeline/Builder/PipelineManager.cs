@@ -470,32 +470,90 @@ namespace MonoGame.Framework.Content.Pipeline.Builder
             return result;
         }
 
-        private void ResolveOutputFilepath(string sourceFilepath, ref string outputFilepath)
-        {
-            // If the output path is null... build it from the source file path.
-            if (string.IsNullOrEmpty(outputFilepath))
+        public void ResolveOutputFilepath(string sourceFilePath, ref string outputFilePath, bool isXnb)
+        {            
+            if (string.IsNullOrEmpty(outputFilePath))
             {
-                var filename = Path.GetFileNameWithoutExtension(sourceFilepath) + ".xnb";
+                outputFilePath = sourceFilePath;
+
                 var directory = PathHelper.GetRelativePath(ProjectDirectory,
-                                                           Path.GetDirectoryName(sourceFilepath) +
+                                                           Path.GetDirectoryName(sourceFilePath) +
                                                            Path.DirectorySeparatorChar);
-                outputFilepath = Path.Combine(OutputDirectory, directory, filename);
+
+                outputFilePath = Path.Combine(OutputDirectory, directory, outputFilePath);
+            }
+            else
+            {                
+                if (!Path.IsPathRooted(outputFilePath))
+                {
+                    outputFilePath = Path.Combine(OutputDirectory, outputFilePath);
+                }
+            }
+
+            if (isXnb)
+                outputFilePath = Path.ChangeExtension(outputFilePath, ".xnb");
+            else
+                outputFilePath = Path.ChangeExtension(outputFilePath, Path.GetExtension(sourceFilePath));
+
+            outputFilePath = PathHelper.Normalize(outputFilePath);
+        }
+
+        /// <summary>
+        /// Copy 'sourceFilepath' to 'outputFilepath' if it is newer.
+        /// Both paths should be rooted / absolute paths.
+        /// 
+        /// Returns true if the item was copied. 
+        /// Returns false if the item was skipped (source was not newer than destination).
+        /// Throws an exception if an error occurs.
+        /// </summary>        
+        public bool CopyContent(string sourceFilepath, string outputFilepath)
+        {
+            if (!File.Exists(sourceFilepath))
+                throw new PipelineException("The source file '{0}' does not exist!", sourceFilepath);
+
+            Logger.PushFile(sourceFilepath);
+
+            // Only copy if the source file is newer than the destination.
+            // We may want to provide an option for overriding this, but for
+            // nearly all cases this is the desired behavior.
+            var rebuild = true;            
+            if (File.Exists(outputFilepath))
+            {
+                var srcTime = File.GetLastWriteTimeUtc(sourceFilepath);
+                var dstTime = File.GetLastWriteTimeUtc(outputFilepath);
+                if (dstTime >= srcTime)
+                {
+                    rebuild = false;
+                }
+            }            
+
+            // Do we need to rebuild?
+            if (rebuild)
+            {
+                var assetName = Path.GetFileNameWithoutExtension(outputFilepath);
+                Logger.LogMessage("Copying {0};{1}", sourceFilepath, assetName);              
+
+                // Create the destination directory if it doesn't already exist.
+                var dstDir = Path.GetDirectoryName(outputFilepath);
+                if (!Directory.Exists(dstDir))
+                    Directory.CreateDirectory(dstDir);
+
+                File.Copy(sourceFilepath, outputFilepath, true);
+
+                // Destination file should not be read-only even if original was.
+                var fileAttr = File.GetAttributes(outputFilepath);
+                fileAttr = fileAttr & (~FileAttributes.ReadOnly);
+                File.SetAttributes(outputFilepath, fileAttr);
             }
             else
             {
-                // If the extension is not XNB or the source file extension then add XNB.
-                var sourceExt = Path.GetExtension(sourceFilepath);
-                if (outputFilepath.EndsWith(sourceExt, StringComparison.InvariantCultureIgnoreCase))
-                    outputFilepath = outputFilepath.Substring(0, outputFilepath.Length - sourceExt.Length);
-                if (!outputFilepath.EndsWith(".xnb", StringComparison.InvariantCultureIgnoreCase))
-                    outputFilepath += ".xnb";
-
-                // If the path isn't rooted then put it into the output directory.
-                if (!Path.IsPathRooted(outputFilepath))
-                    outputFilepath = Path.Combine(OutputDirectory, outputFilepath);
+                // Enable this when we have verbosity levels.
+                //Logger.LogMessage("Skipping {0}", sourceFilepath);
             }
 
-            outputFilepath = PathHelper.Normalize(outputFilepath);
+            Logger.PopFile();
+
+            return rebuild;
         }
 
         private PipelineBuildEvent LoadBuildEvent(string destFile, out string eventFilepath)
@@ -505,10 +563,10 @@ namespace MonoGame.Framework.Content.Pipeline.Builder
             return PipelineBuildEvent.Load(eventFilepath);
         }
 
-        public void RegisterContent(string sourceFilepath, string outputFilepath = null, string importerName = null, string processorName = null, OpaqueDataDictionary processorParameters = null)
+        public void RegisterContent(string sourceFilepath, string outputFilepath, string importerName, string processorName, OpaqueDataDictionary processorParameters)
         {
             sourceFilepath = PathHelper.Normalize(sourceFilepath);
-            ResolveOutputFilepath(sourceFilepath, ref outputFilepath);
+            ResolveOutputFilepath(sourceFilepath, ref outputFilepath, true);
 
             ResolveImporterAndProcessor(sourceFilepath, ref importerName, ref processorName);
 
@@ -525,11 +583,16 @@ namespace MonoGame.Framework.Content.Pipeline.Builder
             TrackPipelineBuildEvent(contentEvent);
         }
 
-        public PipelineBuildEvent BuildContent(string sourceFilepath, string outputFilepath = null, string importerName = null, string processorName = null, OpaqueDataDictionary processorParameters = null)
+        public bool BuildContent(string sourceFilepath,
+                                 string outputFilepath,
+                                 string importerName,
+                                 string processorName,
+                                 OpaqueDataDictionary processorParameters,
+                                 out PipelineBuildEvent buildEvent)
         {
             sourceFilepath = PathHelper.Normalize(sourceFilepath);
-            ResolveOutputFilepath(sourceFilepath, ref outputFilepath);
-            
+            ResolveOutputFilepath(sourceFilepath, ref outputFilepath, true);
+
             ResolveImporterAndProcessor(sourceFilepath, ref importerName, ref processorName);
 
             // Record what we're building and how.
@@ -546,12 +609,20 @@ namespace MonoGame.Framework.Content.Pipeline.Builder
             string eventFilepath;
             var cachedEvent = LoadBuildEvent(contentEvent.DestFile, out eventFilepath);
 
-            BuildContent(contentEvent, cachedEvent, eventFilepath);
+            var result = BuildContent(contentEvent, cachedEvent, eventFilepath);
+            buildEvent = contentEvent;
 
-            return contentEvent;
+            return result;
         }
 
-        private void BuildContent(PipelineBuildEvent pipelineEvent, PipelineBuildEvent cachedEvent, string eventFilepath)
+        /// <summary>
+        /// Build content represented by 'pipelineEvent' if it is newer than 'cachedEvent'.
+        /// 
+        /// Returns true if the item was built. 
+        /// Returns false if the item was skipped (cachedEvent is up to date).
+        /// Throws an exception if an error occurs.
+        /// </summary> 
+        public bool BuildContent(PipelineBuildEvent pipelineEvent, PipelineBuildEvent cachedEvent, string eventFilepath)
         {
             if (!File.Exists(pipelineEvent.SourceFile))
             {
@@ -625,6 +696,8 @@ namespace MonoGame.Framework.Content.Pipeline.Builder
                 Logger.Unindent();
                 Logger.PopFile();
             }
+			
+			return rebuild;
         }
 
         public object ProcessContent(PipelineBuildEvent pipelineEvent)
@@ -716,12 +789,13 @@ namespace MonoGame.Framework.Content.Pipeline.Builder
             return processedObject;
         }
 
-        public void CleanContent(string sourceFilepath, string outputFilepath = null)
+        public void CleanContent(string outputFilepath)
         {
-            // First try to load the event file.
-            ResolveOutputFilepath(sourceFilepath, ref outputFilepath);
+            // First try to load the event file.            
             string eventFilepath;
             var cachedEvent = LoadBuildEvent(outputFilepath, out eventFilepath);
+
+            Logger.LogMessage("Cleaning {0}", outputFilepath);
 
             if (cachedEvent != null)
             {
@@ -743,7 +817,7 @@ namespace MonoGame.Framework.Content.Pipeline.Builder
                         continue;
                     }
 
-                    CleanContent(string.Empty, asset);
+                    CleanContent(asset);
                 }
 
                 // Remove related output files (non-XNB files) that were copied to the output folder.
@@ -752,9 +826,9 @@ namespace MonoGame.Framework.Content.Pipeline.Builder
                     Logger.LogMessage("Cleaning {0}", asset);
                     FileHelper.DeleteIfExists(asset);
                 }
-            }
 
-            Logger.LogMessage("Cleaning {0}", outputFilepath);
+                // jcf: clean intermediate output???
+            }            
 
             // Remove asset (.xnb file) from output folder.
             FileHelper.DeleteIfExists(outputFilepath);
@@ -762,7 +836,28 @@ namespace MonoGame.Framework.Content.Pipeline.Builder
             // Remove event file (.mgcontent file) from intermediate folder.
             FileHelper.DeleteIfExists(eventFilepath);
 
-            _pipelineBuildEvents.Remove(sourceFilepath);
+            // jcf: I'm just trying to 'un-track' a single previous output, but honestly this seems rediculous if this whole system is just for purposes of auto-naming external dependencies
+            if (cachedEvent != null)
+            {
+                List<PipelineBuildEvent> pipelineBuildEvents;
+                bool eventsFound = _pipelineBuildEvents.TryGetValue(cachedEvent.SourceFile, out pipelineBuildEvents);
+                if (eventsFound)
+                {
+                    PipelineBuildEvent pbe = null;
+                    for (var i = 0; i < pipelineBuildEvents.Count; i++)
+                    {
+                        var e = pipelineBuildEvents[i];
+                        if (e.DestFile == outputFilepath)
+                        {
+                            pipelineBuildEvents.RemoveAt(i);
+                            i--;
+                        }
+                    }
+
+                    if (pipelineBuildEvents.Count == 0)
+                        _pipelineBuildEvents.Remove(cachedEvent.SourceFile);                    
+                }
+            }
         }
 
         private void WriteXnb(object content, PipelineBuildEvent pipelineEvent)
