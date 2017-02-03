@@ -11,9 +11,6 @@ using System.Linq;
 using SharpDX;
 using SharpDX.Direct3D;
 using SharpDX.Direct3D11;
-#if WINDOWS_PHONE
-using MonoGame.Framework.WindowsPhone;
-#endif
 
 #if WINDOWS_STOREAPP || WINDOWS_UAP
 using Windows.UI.Xaml.Controls;
@@ -568,7 +565,7 @@ namespace Microsoft.Xna.Framework.Graphics
 
 #if WINDOWS_STOREAPP || WINDOWS_UAP || WINDOWS_PHONE
 
-        internal void PlatformSetMultiSamplingToMaximum(PresentationParameters presentationParameters, out int quality)
+        private void SetMultiSamplingToMaximum(PresentationParameters presentationParameters, out int quality)
         {
             quality = (int)SharpDX.Direct3D11.StandardMultisampleQualityLevels.StandardMultisamplePattern;
         }
@@ -655,39 +652,10 @@ namespace Microsoft.Xna.Framework.Graphics
             // Get Direct3D 11.1 context
             _d3dContext = _d3dDevice.ImmediateContext.QueryInterface<SharpDX.Direct3D11.DeviceContext>();
         }
-        
-        internal void PlatformSetMultiSamplingToMaximum(PresentationParameters presentationParameters, out int quality)
+
+        private int GetMultiSamplingQuality(Format format, int multiSampleCount)
         {
-            var format = presentationParameters.BackBufferFormat == SurfaceFormat.Color ?
-                               SharpDX.DXGI.Format.B8G8R8A8_UNorm :
-                               SharpDXHelper.ToFormat(presentationParameters.BackBufferFormat);
-
-            // Check that the multisample count specified by the game is valid.
-            var msc = PresentationParameters.MultiSampleCount;
-            if (!((msc != 0) && ((msc & (msc - 1)) == 0)))
-            {
-                throw new ApplicationException(
-                    "The specified multisample count is not a power of 2 (it must be " +
-                    "a value such as 0, 1, 2, 4, 8, 16, 32, etc.).");
-            }
-
-            // Find the maximum supported level starting with the game's requested multisampling level
-            // and halving each time until reaching 0 (meaning no multisample support).
-            var qualityLevels = 0;
-            var maxLevel = msc;
-            while (maxLevel > 0)
-            {
-                qualityLevels = _d3dDevice.CheckMultisampleQualityLevels(format, maxLevel);
-                if (qualityLevels > 0)
-                    break;
-                maxLevel /= 2;
-            }
-
-            // Correct the MSAA level if it is too high.
-            if (presentationParameters.MultiSampleCount > maxLevel)
-                presentationParameters.MultiSampleCount = maxLevel;
-
-            quality = qualityLevels - 1;
+            return _d3dDevice.CheckMultisampleQualityLevels(format, multiSampleCount) - 1;
         }
 
         internal void SetHardwareFullscreen()
@@ -741,14 +709,11 @@ namespace Microsoft.Xna.Framework.Graphics
             var multisampleDesc = new SharpDX.DXGI.SampleDescription(1, 0);
             if (PresentationParameters.MultiSampleCount > 1)
             {
-                int quality;
-                PlatformSetMultiSamplingToMaximum(PresentationParameters, out quality);
+                var quality = GetMultiSamplingQuality(format, PresentationParameters.MultiSampleCount);
                 
                 multisampleDesc.Count = PresentationParameters.MultiSampleCount;
                 multisampleDesc.Quality = quality;
             }
-
-            int vSyncFrameLatency = PresentationParameters.PresentationInterval.GetFrameLatency();
 
             // If the swap chain already exists... update it.
             if (_swapChain != null)
@@ -757,18 +722,7 @@ namespace Microsoft.Xna.Framework.Graphics
                                         PresentationParameters.BackBufferWidth,
                                         PresentationParameters.BackBufferHeight,
                                         format,
-                                        SwapChainFlags.None);
-
-                // Update Vsync setting.
-                using (var dxgiDevice = _d3dDevice.QueryInterface<SharpDX.DXGI.Device1>())
-                {
-                    // If VSync is disabled, Ensure that DXGI does not queue more than one frame at a time. This 
-                    // both reduces latency and ensures that the application will only render 
-                    // after each VSync, minimizing power consumption.
-                    // Setting latency to 0 (PresentInterval.Immediate) will result in the hardware default.
-                    // (normally 3) 
-                    dxgiDevice.MaximumFrameLatency = vSyncFrameLatency;
-                }
+                                        SwapChainFlags.AllowModeSwitch);
             }
 
             // Otherwise, create a new swap chain.
@@ -807,12 +761,9 @@ namespace Microsoft.Xna.Framework.Graphics
                 {
                     _swapChain = new SwapChain(dxgiFactory, dxgiDevice, desc);
                     dxgiFactory.MakeWindowAssociation(PresentationParameters.DeviceWindowHandle, WindowAssociationFlags.IgnoreAll);
-                    // If VSync is disabled, Ensure that DXGI does not queue more than one frame at a time. This 
-                    // both reduces latency and ensures that the application will only render 
-                    // after each VSync, minimizing power consumption.
-                    // Setting latency to 0 (PresentInterval.Immediate) will result in the hardware default.
-                    // (normally 3) 
-                    dxgiDevice.MaximumFrameLatency = vSyncFrameLatency;
+                    // To reduce latency, ensure that DXGI does not queue more than one frame at a time.
+                    // Docs: https://msdn.microsoft.com/en-us/library/windows/desktop/ff471334(v=vs.85).aspx
+                    dxgiDevice.MaximumFrameLatency = 1;
                 }
             }
 
@@ -1005,7 +956,7 @@ namespace Microsoft.Xna.Framework.Graphics
 
             try
             {
-                var syncInterval = PresentationParameters.PresentationInterval.GetFrameLatency();
+                var syncInterval = PresentationParameters.PresentationInterval.GetSyncInterval();
 
                 // The first argument instructs DXGI to block n VSyncs before presenting.
                 lock (_d3dContext)

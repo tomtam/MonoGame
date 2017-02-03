@@ -23,9 +23,6 @@ namespace MonoGame.Tools.Pipeline
         public static extern IntPtr g_file_new_for_path(string path);
 
         [DllImport(gtklibpath, CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr gtk_app_chooser_dialog_new(IntPtr parrent, int flags, IntPtr file);
-
-        [DllImport(gtklibpath, CallingConvention = CallingConvention.Cdecl)]
         public static extern bool gtk_application_prefers_app_menu(IntPtr application);
     }
 
@@ -39,7 +36,7 @@ namespace MonoGame.Tools.Pipeline
             Linux = true;
             _theme = IconTheme.Default;
 
-            var iconMissing = _theme.LoadIcon("error", 16, 0);
+            var iconMissing = _theme.LoadIcon("dialog-error", 16, 0);
             var file = _theme.LoadIcon("text-x-generic", 16, 0);
             var fileMissing = file.Copy();
             iconMissing.Composite(fileMissing, 8, 8, 8, 8, 8, 8, 0.5, 0.5, Gdk.InterpType.Tiles, 255);
@@ -64,19 +61,6 @@ namespace MonoGame.Tools.Pipeline
 
                 UseHeaderBar = Gtk3Wrapper.gtk_application_prefers_app_menu(_app.Handle);
             }
-        }
-
-        private static void PlatformShowOpenWithDialog(string filePath)
-        {
-            var adialoghandle = Gtk3Wrapper.gtk_app_chooser_dialog_new(((Window)MainWindow.Instance.ControlObject).Handle, 
-                                                                       4 + (int)DialogFlags.Modal, 
-                                                                       Gtk3Wrapper.g_file_new_for_path(filePath));
-            var adialog = new AppChooserDialog(adialoghandle);
-
-            if (adialog.Run() == (int)ResponseType.Ok)
-                Process.Start(adialog.AppInfo.Executable, "\"" + filePath + "\"");
-
-            adialog.Destroy();
         }
 
         private static Gdk.Pixbuf PlatformGetFileIcon(string path)
@@ -178,25 +162,27 @@ namespace MonoGame.Tools.Pipeline
                         break;
                     case "Commands.Clean.png":
                         iconInfo = _theme.LookupIcon("edit-clear-all", 16, 0);
+                        if (iconInfo == null)
+                            iconInfo = _theme.LookupIcon("edit-clear", 16, 0);
                         break;
                     case "Commands.CancelBuild.png":
                         iconInfo = _theme.LookupIcon("process-stop", 16, 0);
                         break;
                     case "Commands.Help.png":
-                        iconInfo = _theme.LookupIcon("help", 16, 0);
+                        iconInfo = _theme.LookupIcon("system-help", 16, 0);
                         break;
-
+                        
                     case "Build.Information.png":
-                        iconInfo = _theme.LookupIcon("info", 16, 0);
+                        iconInfo = _theme.LookupIcon("dialog-information", 16, 0);
                         break;
                     case "Build.Fail.png":
-                        iconInfo = _theme.LookupIcon("error", 16, 0);
+                        iconInfo = _theme.LookupIcon("dialog-error", 16, 0);
                         break;
                     case "Build.Processing.png":
                         iconInfo = _theme.LookupIcon("preferences-system-time", 16, 0);
                         break;
                     case "Build.Skip.png":
-                        iconInfo = _theme.LookupIcon("gtk-yes", 16, 0);
+                        iconInfo = _theme.LookupIcon("emblem-default", 16, 0);
                         break;
                     case "Build.Start.png":
                         iconInfo = _theme.LookupIcon("system-run", 16, 0);
@@ -208,7 +194,7 @@ namespace MonoGame.Tools.Pipeline
                         iconInfo = _theme.LookupIcon("system-run", 16, 0);
                         break;
                     case "Build.Succeed.png":
-                        iconInfo = _theme.LookupIcon("gtk-yes", 16, 0);
+                        iconInfo = _theme.LookupIcon("emblem-default", 16, 0);
                         break;
                 }
 
