@@ -204,8 +204,32 @@ namespace Microsoft.Xna.Framework.Graphics
 
             // try getting the context version
             // GL_MAJOR_VERSION and GL_MINOR_VERSION are GL 3.0+ only, so we need to rely on the GL_VERSION string
-            // this string always starts with the version number in the "major.minor" format, but can be followed by
+            // for non GLES this string always starts with the version number in the "major.minor" format, but can be followed by
             // multiple vendor specific characters
+            // For GLES this string is formatted as: OpenGL<space>ES<space><version number><space><vendor-specific information>
+#if GLES
+            try
+            {
+                string version = GL.GetString(StringName.Version);
+                string[] versionSplit = version.Split(' ');
+                if(versionSplit.Length > 2 && versionSplit[0].Equals("OpenGL") && versionSplit[1].Equals("ES"))
+                {
+                    glMajorVersion = Convert.ToInt32(versionSplit[2].Substring(0, 1));
+                    glMinorVersion = Convert.ToInt32(versionSplit[2].Substring(2, 1));
+                }
+                else
+                {
+                    glMajorVersion = 1;
+                    glMinorVersion = 1;
+                }
+            }
+            catch (FormatException)
+            {
+                //if it fails we default to 1.1 context
+                glMajorVersion = 1;
+                glMinorVersion = 1;
+            }
+#else
             try
             {
                 string version = GL.GetString(StringName.Version);
@@ -218,6 +242,8 @@ namespace Microsoft.Xna.Framework.Graphics
                 glMajorVersion = 1;
                 glMinorVersion = 1;
             }
+#endif
+
 #if !GLES
 			// Initialize draw buffer attachment array
 			int maxDrawBuffers;
@@ -253,25 +279,10 @@ namespace Microsoft.Xna.Framework.Graphics
             _programCache.Clear();
             _shaderProgram = null;
 
-            if (GraphicsCapabilities.SupportsFramebufferObjectARB)
-            {
-                this.framebufferHelper = new FramebufferHelper(this);
-            }
-            #if !(GLES || MONOMAC)
-            else if (GraphicsCapabilities.SupportsFramebufferObjectEXT)
-            {
-                this.framebufferHelper = new FramebufferHelperEXT(this);
-            }
-            #endif
-            else
-            {
-                throw new PlatformNotSupportedException(
-                    "MonoGame requires either ARB_framebuffer_object or EXT_framebuffer_object." +
-                    "Try updating your graphics drivers.");
-            }
+            framebufferHelper = FramebufferHelper.Create(this);
 
-            // Force reseting states
-            this.BlendState.PlatformApplyState(this, true);
+            // Force resetting states
+            this.PlatformApplyBlend(true);
             this.DepthStencilState.PlatformApplyState(this, true);
             this.RasterizerState.PlatformApplyState(this, true);            
 
@@ -334,11 +345,7 @@ namespace Microsoft.Xna.Framework.Graphics
             {
                 if (depth != _lastClearDepth)
                 {
- #if GLES
-                    GL.ClearDepth (depth);
- #else
                     GL.ClearDepth(depth);
- #endif
                     GraphicsExtensions.CheckGLError();
                     _lastClearDepth = depth;
                 }
@@ -417,11 +424,8 @@ namespace Microsoft.Xna.Framework.Graphics
             else
                 GL.Viewport(value.X, PresentationParameters.BackBufferHeight - value.Y - value.Height, value.Width, value.Height);
             GraphicsExtensions.LogGLError("GraphicsDevice.Viewport_set() GL.Viewport");
-#if GLES
+
             GL.DepthRange(value.MinDepth, value.MaxDepth);
-#else
-            GL.DepthRange(value.MinDepth, value.MaxDepth);
-#endif
             GraphicsExtensions.LogGLError("GraphicsDevice.Viewport_set() GL.DepthRange");
                 
             // In OpenGL we have to re-apply the special "posFixup"
@@ -515,7 +519,8 @@ namespace Microsoft.Xna.Framework.Graphics
                 switch (preferredDepthFormat)
                 {
                     case DepthFormat.Depth16: 
-                        depthInternalFormat = RenderbufferStorage.DepthComponent16; break;
+                        depthInternalFormat = RenderbufferStorage.DepthComponent16;
+                        break;
 #if GLES
                     case DepthFormat.Depth24:
                         if (GraphicsCapabilities.SupportsDepth24)
@@ -541,8 +546,12 @@ namespace Microsoft.Xna.Framework.Graphics
                         }
                         break;
 #else
-                    case DepthFormat.Depth24: depthInternalFormat = RenderbufferStorage.DepthComponent24; break;
-                    case DepthFormat.Depth24Stencil8: depthInternalFormat = RenderbufferStorage.Depth24Stencil8; break;
+                    case DepthFormat.Depth24:
+                        depthInternalFormat = RenderbufferStorage.DepthComponent24;
+                        break;
+                    case DepthFormat.Depth24Stencil8:
+                        depthInternalFormat = RenderbufferStorage.Depth24Stencil8;
+                        break;
 #endif
                 }
 
@@ -816,6 +825,26 @@ namespace Microsoft.Xna.Framework.Graphics
             Threading.EnsureUIThread();
         }
 
+        private void PlatformApplyBlend(bool force = false)
+        {
+            _actualBlendState.PlatformApplyState(this, force);
+            ApplyBlendFactor(force);
+        }
+
+        private void ApplyBlendFactor(bool force)
+        {
+            if (force || BlendFactor != _lastBlendState.BlendFactor)
+            {
+                GL.BlendColor(
+                    this.BlendFactor.R/255.0f,
+                    this.BlendFactor.G/255.0f,
+                    this.BlendFactor.B/255.0f,
+                    this.BlendFactor.A/255.0f);
+                GraphicsExtensions.CheckGLError();
+                _lastBlendState.BlendFactor = this.BlendFactor;
+            }
+        }
+
         internal void PlatformApplyState(bool applyShaders)
         {
             if ( _scissorRectangleDirty )
@@ -901,7 +930,8 @@ namespace Microsoft.Xna.Framework.Graphics
             var vertexDeclaration = _vertexBuffers.Get(0).VertexBuffer.VertexDeclaration;
             var vertexOffset = (IntPtr)(vertexDeclaration.VertexStride * baseVertex);
 
-            vertexDeclaration.Apply(_vertexShader, vertexOffset);
+            var programHash = _vertexShader.HashKey | _pixelShader.HashKey;
+            vertexDeclaration.Apply(_vertexShader, vertexOffset, programHash);
 
             GL.DrawElements(target,
                                      indexElementCount,
@@ -926,7 +956,8 @@ namespace Microsoft.Xna.Framework.Graphics
 
             // Setup the vertex declaration to point at the VB data.
             vertexDeclaration.GraphicsDevice = this;
-            vertexDeclaration.Apply(_vertexShader, vbHandle.AddrOfPinnedObject());
+            var programHash = _vertexShader.HashKey | _pixelShader.HashKey;
+            vertexDeclaration.Apply(_vertexShader, vbHandle.AddrOfPinnedObject(), programHash);
 
             //Draw
             GL.DrawArrays(PrimitiveTypeGL(primitiveType),
@@ -942,7 +973,11 @@ namespace Microsoft.Xna.Framework.Graphics
         {
             ApplyState(true);
 
-            _vertexBuffers.Get(0).VertexBuffer.VertexDeclaration.Apply(_vertexShader, IntPtr.Zero);
+            var programHash = _vertexShader.HashKey | _pixelShader.HashKey;
+            _vertexBuffers.Get(0).VertexBuffer.VertexDeclaration.Apply(_vertexShader, IntPtr.Zero, programHash);
+
+            if (vertexStart < 0)
+                vertexStart = 0;
 
 			GL.DrawArrays(PrimitiveTypeGL(primitiveType),
 			              vertexStart,
@@ -969,7 +1004,8 @@ namespace Microsoft.Xna.Framework.Graphics
 
             // Setup the vertex declaration to point at the VB data.
             vertexDeclaration.GraphicsDevice = this;
-            vertexDeclaration.Apply(_vertexShader, vertexAddr);
+            var programHash = _vertexShader.HashKey | _pixelShader.HashKey;
+            vertexDeclaration.Apply(_vertexShader, vertexAddr, programHash);
 
             //Draw
             GL.DrawElements(    PrimitiveTypeGL(primitiveType),
@@ -1002,7 +1038,8 @@ namespace Microsoft.Xna.Framework.Graphics
 
             // Setup the vertex declaration to point at the VB data.
             vertexDeclaration.GraphicsDevice = this;
-            vertexDeclaration.Apply(_vertexShader, vertexAddr);
+            var programHash = _vertexShader.HashKey | _pixelShader.HashKey;
+            vertexDeclaration.Apply(_vertexShader, vertexAddr, programHash);
 
             //Draw
             GL.DrawElements(    PrimitiveTypeGL(primitiveType),
@@ -1024,6 +1061,22 @@ namespace Microsoft.Xna.Framework.Graphics
         private static GraphicsProfile PlatformGetHighestSupportedGraphicsProfile(GraphicsDevice graphicsDevice)
         {
            return GraphicsProfile.HiDef;
+        }
+        
+        private static Rectangle PlatformGetTitleSafeArea(int x, int y, int width, int height)
+        {
+            return new Rectangle(x, y, width, height);
+        }
+        
+        internal void PlatformSetMultiSamplingToMaximum(PresentationParameters presentationParameters, out int quality)
+        {
+            presentationParameters.MultiSampleCount = 4;
+            quality = 0;
+        }
+
+        internal void OnPresentationChanged()
+        {
+            ApplyRenderTargets(null);
         }
     }
 }

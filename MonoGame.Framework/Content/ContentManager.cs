@@ -37,7 +37,6 @@ namespace Microsoft.Xna.Framework.Content
         {
             'w', // Windows (DirectX)
             'x', // Xbox360
-            'm', // WindowsPhone
             'i', // iOS
             'a', // Android
             'd', // DesktopGL
@@ -47,6 +46,8 @@ namespace Microsoft.Xna.Framework.Content
             'M', // WindowsPhone8
             'r', // RaspberryPi
             'P', // PlayStation4
+            'v', // PSVita
+            'O', // XboxOne
 
             // NOTE: There are additional idenfiers for consoles that 
             // are not defined in this repository.  Be sure to ask the
@@ -59,7 +60,6 @@ namespace Microsoft.Xna.Framework.Content
             'p', // PlayStationMobile
             'g', // Windows (OpenGL)
             'l', // Linux
-            'u', // Ouya
         };
 
 

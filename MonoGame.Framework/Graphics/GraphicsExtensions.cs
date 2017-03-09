@@ -1,4 +1,8 @@
-﻿using System;
+﻿// MonoGame - Copyright (C) The MonoGame Team
+// This file is subject to the terms and conditions defined in
+// file 'LICENSE.txt', which is part of this source code package.
+
+using System;
 using System.Diagnostics;
 
 #if OPENGL
@@ -747,7 +751,7 @@ namespace Microsoft.Xna.Framework.Graphics
 
 #endif // OPENGL
 
-        public static int GetFrameLatency(this PresentInterval interval)
+        public static int GetSyncInterval(this PresentInterval interval)
         {
             switch (interval)
             {

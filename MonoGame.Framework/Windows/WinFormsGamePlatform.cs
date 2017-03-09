@@ -3,15 +3,12 @@
 // file 'LICENSE.txt', which is part of this source code package.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using Microsoft.Xna.Framework;
 using System.Windows.Forms;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Properties;
-using XnaKeys = Microsoft.Xna.Framework.Input.Keys;
-
 
 namespace MonoGame.Framework
 {
@@ -20,18 +17,14 @@ namespace MonoGame.Framework
         //internal static string LaunchParameters;
 
         private WinFormsGameWindow _window;
-        private readonly List<XnaKeys> _keyState;
+        private System.Drawing.Point _locationBeforeFullscreen;
 
         public WinFormsGamePlatform(Game game)
             : base(game)
         {
-            _keyState = new List<XnaKeys>();
-            Keyboard.SetKeys(_keyState);
-
             _window = new WinFormsGameWindow(this);
-            _window.KeyState = _keyState;
 
-            Mouse.Window = _window._form;
+            Mouse.Window = _window.Form;
 
             Window = _window;
         }
@@ -54,16 +47,21 @@ namespace MonoGame.Framework
 
         public override void BeforeInitialize()
         {
-            var gdm = Game.graphicsDeviceManager;
-
-            _window.Initialize(gdm.PreferredBackBufferWidth, gdm.PreferredBackBufferHeight);
-
             base.BeforeInitialize();
 
-            if (gdm.IsFullScreen)
-                EnterFullScreen();
+            var gdm = Game.graphicsDeviceManager;
+            if (gdm == null)
+            {
+                _window.Initialize(GraphicsDeviceManager.DefaultBackBufferWidth, GraphicsDeviceManager.DefaultBackBufferHeight);
+            }
             else
-                ExitFullScreen();
+            {
+                var pp = Game.GraphicsDevice.PresentationParameters;
+                _window.Initialize(pp.BackBufferWidth, pp.BackBufferHeight);
+
+                if (gdm.IsFullScreen)
+                    EnterFullScreen();
+            }
         }
 
         public override void RunLoop()
@@ -75,8 +73,8 @@ namespace MonoGame.Framework
             if (Debugger.IsAttached)
             {
                 Settings.Default.RestoreWindow = true;
-                Settings.Default.RestoreWindowDesktopLocation = _window._form.DesktopLocation;
-                Settings.Default.RestoreWindowDesktopSize = _window._form.DesktopBounds.Size;
+                Settings.Default.RestoreWindowDesktopLocation = _window.Form.DesktopLocation;
+                Settings.Default.RestoreWindowDesktopSize = _window.Form.DesktopBounds.Size;
 
                 Settings.Default.Save();
             }
@@ -108,60 +106,48 @@ namespace MonoGame.Framework
 
         public override void EnterFullScreen()
         {
-            if (_alreadyInFullScreenMode)
-                return;
-
+            // store the location of the window so we can restore it later
+            _locationBeforeFullscreen = _window.Form.Location;
             if (Game.graphicsDeviceManager.HardwareModeSwitch)
-            {
-                 Game.GraphicsDevice.PresentationParameters.IsFullScreen = true;
-                 Game.GraphicsDevice.CreateSizeDependentResources(true);
-                 Game.GraphicsDevice.ApplyRenderTargets(null);
-                _window._form.WindowState = FormWindowState.Maximized;
-            }
+                Game.GraphicsDevice.SetHardwareFullscreen();
             else
-            {
                 _window.IsBorderless = true;
-                _window._form.WindowState = FormWindowState.Maximized;
-            }
 
-            _alreadyInWindowedMode = false;
-            _alreadyInFullScreenMode = true;
+            _window.Form.WindowState = FormWindowState.Maximized;
+
+            InFullScreenMode = true;
         }
 
         public override void ExitFullScreen()
         {
-            if (_alreadyInWindowedMode)
-               return;
-
             if (Game.graphicsDeviceManager.HardwareModeSwitch)
-            {
-                _window._form.WindowState = FormWindowState.Normal;
-                Game.GraphicsDevice.PresentationParameters.IsFullScreen = false;
-                Game.GraphicsDevice.CreateSizeDependentResources(true);
-                Game.GraphicsDevice.ApplyRenderTargets(null);
-            }
+                Game.GraphicsDevice.SetHardwareFullscreen();
             else
-            {
-                _window._form.WindowState = FormWindowState.Normal;
                 _window.IsBorderless = false;
-            }
 
-            _alreadyInWindowedMode = true;
-            _alreadyInFullScreenMode = false;
+            _window.Form.WindowState = FormWindowState.Normal;
+            _window.Form.Location = _locationBeforeFullscreen;
+
+            InFullScreenMode = false;
         }
 
         internal override void OnPresentationChanged()
         {
-            var presentationParameters = Game.GraphicsDevice.PresentationParameters;
-            
-            if (presentationParameters.IsFullScreen)
+            var pp = Game.GraphicsDevice.PresentationParameters;
+            _window.ChangeClientSize(new Size(pp.BackBufferWidth, pp.BackBufferHeight));
+
+            if (Game.GraphicsDevice.PresentationParameters.IsFullScreen && !InFullScreenMode)
+            {
                 EnterFullScreen();
-            else
-                ExitFullScreen();                
-            
-            _window.ChangeClientSize(new Size(presentationParameters.BackBufferWidth, presentationParameters.BackBufferHeight));
+                _window.OnClientSizeChanged();
+            }
+            else if (!Game.GraphicsDevice.PresentationParameters.IsFullScreen && InFullScreenMode)
+            {
+                ExitFullScreen();
+                _window.OnClientSizeChanged();
+            }
         }
-        
+
         public override void EndScreenDeviceChange(string screenDeviceName, int clientWidth, int clientHeight)
         {
         }
@@ -194,7 +180,6 @@ namespace MonoGame.Framework
                 }
                 Microsoft.Xna.Framework.Media.MediaManagerState.CheckShutdown();
             }
-            Keyboard.SetKeys(null);
 
             base.Dispose(disposing);
         }
