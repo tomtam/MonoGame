@@ -36,8 +36,9 @@ namespace Microsoft.Xna.Framework.Content.Pipeline
             // Validate the format of the input.
             if (content.Format.SampleRate < 8000 || content.Format.SampleRate > 48000)
                 throw new InvalidContentException(string.Format("Audio file {0} contains audio data with unsupported sample rate of {1}KHz. Supported sample rates are from 8KHz up to 48KHz.", Path.GetFileName(filename), content.Format.SampleRate));
-            if (content.Format.BitsPerSample != 8 && content.Format.BitsPerSample != 16)
-                throw new InvalidContentException(string.Format("Audio file {0} contains audio data with unsupported bit depth of {1}. Supported bit depths are from 8bit and 16bit.", Path.GetFileName(filename), content.Format.BitsPerSample));
+            // jcf: breaks BoB build
+            //if (content.Format.BitsPerSample != 8 && content.Format.BitsPerSample != 16)
+                //throw new InvalidContentException(string.Format("Audio file {0} contains audio data with unsupported bit depth of {1}. Supported bit depths are from 8bit and 16bit.", Path.GetFileName(filename), content.Format.BitsPerSample));
             
             return content;
         }

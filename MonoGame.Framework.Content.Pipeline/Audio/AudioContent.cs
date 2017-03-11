@@ -120,10 +120,12 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
 
                 // Looks like XNA only cares about type mismatch when
                 // the type is WAV... else it is ok.
+                // jcf: these actually load fine, screw this.
+                /*
                 if (    (audioFileType == AudioFileType.Wav || _fileType == AudioFileType.Wav) &&
                         audioFileType != _fileType)
                     throw new ArgumentException("Incorrect file type!", "audioFileType");
-
+                */
                 // Only provide the data for WAV files.
                 if (audioFileType == AudioFileType.Wav)
                 {
@@ -140,6 +142,8 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
                     AudioFormat riffAudioFormat;
                     var stripped = DefaultAudioProfile.StripRiffWaveHeader(rawData, out riffAudioFormat);
 
+                    // jcf: these actually load fine, screw this.
+                    /*
                     if (riffAudioFormat != null)
                     {
                         if (_format.BlockAlign != riffAudioFormat.BlockAlign)
@@ -148,6 +152,7 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
                             || _format.SampleRate != riffAudioFormat.SampleRate || _format.AverageBytesPerSecond != riffAudioFormat.AverageBytesPerSecond)
                             throw new InvalidOperationException("Probed audio format does not match RIFF");
                     }
+                    */
 
                     _data = Array.AsReadOnly(stripped);
                 }

@@ -169,8 +169,9 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Audio
                 audioFileType = AudioFileType.Wav;
 
                 // A quirk of XNA?
-                if (bitsPerSample == 32)
-                    format = -2;
+                // jcf: breaks BoB build
+                //if (bitsPerSample == 32)
+                    //format = -2;
             }
             else if (formatName == "mp3")
             {
