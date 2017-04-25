@@ -14,9 +14,9 @@ namespace Microsoft.Xna.Framework.Graphics
     /// </summary>
     internal partial class GraphicsCapabilities
     {
-        public GraphicsCapabilities(GraphicsDevice graphicsDevice)
+        internal void Initialize(GraphicsDevice device)
         {
-            PlatformInitialize(graphicsDevice);
+            PlatformInitialize(device);
         }
 
         /// <summary>
@@ -75,5 +75,14 @@ namespace Microsoft.Xna.Framework.Graphics
         internal bool SupportsDepthClamp { get; private set; }
 
         internal bool SupportsVertexTextures { get; private set; }
+
+        // The highest possible MSCount
+        private const int MultiSampleCountLimit = 32;
+        private int _maxMultiSampleCount;
+
+        internal int MaxMultiSampleCount
+        {
+            get { return _maxMultiSampleCount; }
+        }
     }
 }
