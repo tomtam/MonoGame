@@ -152,6 +152,13 @@ namespace Microsoft.Xna.Framework.Graphics
                 _matrixTransform.SetValue(_projection);
 
             _spritePass.Apply();
+
+            if (_effect != null)
+            {
+                var xfm = _effect.Parameters["MatrixTransform"];
+                if (xfm != null)
+                    xfm.SetValue(_projection);
+            }
 		}
 		
         void CheckValid(Texture2D texture)

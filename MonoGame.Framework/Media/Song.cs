@@ -76,7 +76,7 @@ namespace Microsoft.Xna.Framework.Media
 
         public static Song FromUri(string name, Uri uri)
         {
-            if (!uri.IsAbsoluteUri)
+            if (true)//!uri.IsAbsoluteUri)
             {
                 var song = new Song(uri.OriginalString);
                 song._name = name;
