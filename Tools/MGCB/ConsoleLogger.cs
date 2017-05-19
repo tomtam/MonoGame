@@ -9,8 +9,21 @@ namespace MonoGame.Framework.Content.Pipeline.Builder
 {
     public class ConsoleLogger : ContentBuildLogger
     {
+        private bool _verbose;
+
+        private ConsoleLogger()
+        {
+        }
+
+        public ConsoleLogger(bool verbose)
+        {
+            _verbose = verbose;
+        }
+
         public override void LogMessage(string message, params object[] messageArgs)
         {
+            if (!_verbose)
+                return;
 			Console.WriteLine(IndentString + message, messageArgs);
         }
 
