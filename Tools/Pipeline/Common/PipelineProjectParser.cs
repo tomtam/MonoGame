@@ -393,7 +393,36 @@ namespace MonoGame.Tools.Pipeline
                                 var sourceFilePath = Path.GetDirectoryName(projectFilePath);
                                 sourceFilePath += "\\" + include;
 
-                                OnCopy(sourceFilePath);
+                                if (sourceFilePath.Contains("*"))
+                                {
+                                    string searchDir = null;
+                                    string searchPattern = null;
+                                    SearchOption searchOption = SearchOption.TopDirectoryOnly;
+
+                                    var wildcardDir = sourceFilePath.IndexOf("**");
+                                    if (wildcardDir != -1)
+                                    {
+                                        searchOption = SearchOption.AllDirectories;
+                                        searchDir = sourceFilePath.Remove(wildcardDir - 1);
+                                        searchPattern = Path.GetFileName(sourceFilePath);
+                                    }
+                                    else
+                                    {
+                                        // jcf: not fully tested
+                                        var wildcardFile = Path.GetFileName(sourceFilePath);
+                                        searchDir = sourceFilePath.Replace(wildcardFile, "");
+                                    }
+
+                                    var found = Directory.EnumerateFileSystemEntries(searchDir, searchPattern, searchOption).ToArray();
+                                    foreach (var f in found)
+                                    {
+                                        OnCopy(f);
+                                    }
+                                }
+                                else
+                                {
+                                    OnCopy(sourceFilePath);
+                                }
                             }
                         }
                         else if (buildAction.Equals("Compile"))
