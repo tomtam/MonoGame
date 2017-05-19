@@ -98,8 +98,10 @@ namespace MonoGame.Framework.Content.Pipeline.Builder
             if (string.IsNullOrEmpty(assetName))
                 assetName = _manager.GetAssetName(sourceAsset.Filename, importerName, processorName, processorParameters);
 
+                // TODO: Is this only does for textures or 
             // Build the content.
-            var buildEvent = _manager.BuildContent(sourceAsset.Filename, assetName, importerName, processorName, processorParameters);
+            PipelineBuildEvent buildEvent;
+            _manager.BuildContent(sourceAsset.Filename, assetName, importerName, processorName, processorParameters, out buildEvent);
 
             // Record that we built this dependent asset.
             _pipelineEvent.BuildAsset.AddUnique(buildEvent.DestFile);
