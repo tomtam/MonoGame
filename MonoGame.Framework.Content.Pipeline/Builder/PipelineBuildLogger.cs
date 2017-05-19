@@ -9,21 +9,8 @@ namespace MonoGame.Framework.Content.Pipeline.Builder
 {
     public class PipelineBuildLogger : ContentBuildLogger
     {
-        private bool _verbose;
-
-        private PipelineBuildLogger()
-        {
-        }
-
-        public PipelineBuildLogger(bool verbose)
-        {
-            _verbose = verbose;
-        }
-
         public override void LogMessage(string message, params object[] messageArgs)
         {
-            if (!_verbose)
-                return;
 			System.Diagnostics.Trace.WriteLine(string.Format(message, messageArgs));
         }
 

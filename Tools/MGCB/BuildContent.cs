@@ -4,7 +4,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Microsoft.Xna.Framework.Content.Pipeline;
@@ -16,20 +15,10 @@ namespace MGCB
 {
     class BuildContent
     {
-        public bool LaunchDebugger;
-
         [CommandLineParameter(
             Name = "launchdebugger",
             Description = "Wait for debugger to attach before building content.")]
-        public void OnLaunchDebugger(bool val)
-        {
-            LaunchDebugger = val;
-
-            if (LaunchDebugger)
-            {
-                Debugger.Launch();
-            }
-        }
+        public bool LaunchDebugger = false;
 
         [CommandLineParameter(
             Name = "quiet",
@@ -75,7 +64,7 @@ namespace MGCB
         public bool Rebuild = false;
 
         [CommandLineParameter(
-            Name = "clean",
+            Name = "clean",            
             Description = "Delete all previously built content and intermediate files.")]
         public bool Clean = false;
 
@@ -121,7 +110,7 @@ namespace MGCB
         public void SetProcessor(string processor)
         {
             _processor = processor;
-
+            
             // If you are changing the processor then reset all 
             // the processor parameters.
             _processorParams.Clear();
@@ -149,17 +138,10 @@ namespace MGCB
 
         [CommandLineParameter(
             Name = "build",
-            ValueName = "sourceFile;assetName",
+            ValueName = "sourceFile",
             Description = "Build the content source file using the previously set switches and options.")]
-        public void OnBuild(string sourceFileAssetName)
+        public void OnBuild(string sourceFile)
         {
-            // Parse string into the sourceFile and assetName terms.
-            var words = sourceFileAssetName.Split(';');
-            string sourceFile = words[0];
-            string assetName = null;
-            if (words.Length > 1)
-                assetName = words[1];
-
             // Make sure the source file is absolute.
             if (!Path.IsPathRooted(sourceFile))
                 sourceFile = Path.Combine(Directory.GetCurrentDirectory(), sourceFile);
@@ -174,9 +156,8 @@ namespace MGCB
             // Create the item for processing later.
             var item = new ContentItem
             {
-                SourceFile = sourceFile,
-                AssetName = assetName,
-                Importer = Importer,
+                SourceFile = sourceFile, 
+                Importer = Importer, 
                 Processor = _processor,
                 ProcessorParams = new OpaqueDataDictionary()
             };
@@ -191,36 +172,21 @@ namespace MGCB
 
         [CommandLineParameter(
             Name = "copy",
-            ValueName = "sourceFile;assetName",
-            Description = "Copy the content source file, without any processing, to the output directory.")]
-        public void OnCopy(string sourceFileAssetName)
+            ValueName = "sourceFile",
+            Description = "Copy the content source file verbatim to the output directory.")]
+        public void OnCopy(string sourceFile)
         {
-            // Parse string into the sourceFile and assetName terms.
-            var words = sourceFileAssetName.Split(';');
-            var sourceFile = words[0];
-            var assetName = string.Empty;
-            if (words.Length > 1)
-                assetName = words[1];
-
-            // Make sure the source file is absolute.
             if (!Path.IsPathRooted(sourceFile))
                 sourceFile = Path.Combine(Directory.GetCurrentDirectory(), sourceFile);
 
             sourceFile = PathHelper.Normalize(sourceFile);
 
             // Remove duplicates... keep this new one.
-            var previous = _content.FindIndex(e => string.Equals(e.SourceFile, sourceFile, StringComparison.InvariantCultureIgnoreCase));
+            var previous = _copyItems.FindIndex(e => string.Equals(e, sourceFile, StringComparison.InvariantCultureIgnoreCase));
             if (previous != -1)
-                _content.RemoveAt(previous);
+                _copyItems.RemoveAt(previous);
 
-            // Create the item for processing later.
-            var item = new ContentItem
-            {
-                CopyOnly = true,
-                SourceFile = sourceFile,
-                AssetName = assetName,
-            };
-            _content.Add(item);
+            _copyItems.Add(sourceFile);
         }
 
         [CommandLineParameter(
@@ -228,11 +194,9 @@ namespace MGCB
             Description = "Compress the XNB files for smaller file sizes.")]
         public bool CompressContent = false;
 
-        private class ContentItem
+        public class ContentItem
         {
-            public bool CopyOnly;
             public string SourceFile;
-            public string AssetName;
             public string Importer;
             public string Processor;
             public OpaqueDataDictionary ProcessorParams;
@@ -240,11 +204,13 @@ namespace MGCB
 
         private readonly List<ContentItem> _content = new List<ContentItem>();
 
+        private readonly List<string> _copyItems = new List<string>();
+
         private PipelineManager _manager;
 
         public bool HasWork
         {
-            get { return _content.Count > 0 || Clean; }
+            get { return _content.Count > 0 || _copyItems.Count > 0 || Clean; }    
         }
 
         string ReplaceSymbols(string parameter)
@@ -258,25 +224,20 @@ namespace MGCB
                 .Replace("$(Profile)", this.Profile.ToString());
         }
 
-        public void Build(out int successCount, out int skipCount, out int errorCount)
+        public void Build(out int successCount, out int errorCount)
         {
-            errorCount = 0;
-            skipCount = 0;
-            successCount = 0;
-
             var projectDirectory = PathHelper.Normalize(Directory.GetCurrentDirectory());
 
-            var outputPath = ReplaceSymbols(OutputDir);
+            var outputPath = ReplaceSymbols (OutputDir);
             if (!Path.IsPathRooted(outputPath))
                 outputPath = PathHelper.Normalize(Path.GetFullPath(Path.Combine(projectDirectory, outputPath)));
 
-            var intermediatePath = ReplaceSymbols(IntermediateDir);
+            var intermediatePath = ReplaceSymbols (IntermediateDir);
             if (!Path.IsPathRooted(intermediatePath))
                 intermediatePath = PathHelper.Normalize(Path.GetFullPath(Path.Combine(projectDirectory, intermediatePath)));
-
-            var verbose = !Quiet;
-            _manager = new PipelineManager(projectDirectory, outputPath, intermediatePath, verbose);
-            _manager.Logger = new ConsoleLogger(verbose);
+            
+            _manager = new PipelineManager(projectDirectory, outputPath, intermediatePath);
+            _manager.Logger = new ConsoleLogger();
             _manager.CompressContent = CompressContent;
 
             // If the intent is to debug build, break at the original location
@@ -300,10 +261,19 @@ namespace MGCB
 
             // If the target changed in any way then we need to force
             // a fuull rebuild even under incremental builds.
-            // jcf: what? why?
             var targetChanged = previousContent.Config != Config ||
                                 previousContent.Platform != Platform ||
                                 previousContent.Profile != Profile;
+
+            // First clean previously built content.
+            foreach (var sourceFile in previousContent.SourceFiles)
+            {
+                var inContent = _content.Any(e => string.Equals(e.SourceFile, sourceFile, StringComparison.InvariantCultureIgnoreCase));
+                var cleanOldContent = !inContent && !Incremental;
+                var cleanRebuiltContent = inContent && (Rebuild || Clean);
+                if (cleanRebuiltContent || cleanOldContent || targetChanged)
+                    _manager.CleanContent(sourceFile);                
+            }
 
             var newContent = new SourceFileCollection
             {
@@ -311,189 +281,129 @@ namespace MGCB
                 Platform = _manager.Platform = Platform,
                 Config = _manager.Config = Config
             };
+            errorCount = 0;
+            successCount = 0;
 
-            // if a clean was requested explicitly
-            // then everything we know of in output, as recorded in our intermediate dir
-            // gets cleaned.
-            if (Clean)
+            // Before building the content, register all files to be built. (Necessary to
+            // correctly resolve external references.)
+            foreach (var c in _content)
             {
-                foreach (var prev in previousContent.SourceFiles)
+                try
                 {
-                    var words = prev.Split(';');
-
-                    // old format
-                    if (words.Length < 2)
-                        continue;
-
-                    // old format
-                    var prevAbsOutputFilepath = words[1];
-                    if (!Path.IsPathRooted(prevAbsOutputFilepath))
-                        continue;
-
-                    try
-                    {
-                        bool wasCleaned = false;
-
-                        wasCleaned = _manager.CleanContent(prevAbsOutputFilepath);
-
-                        if (wasCleaned)
-                            successCount++;
-                        else
-                            skipCount++;
-                    }
-                    catch (InvalidContentException ex)
-                    {
-                        var message = string.Empty;
-                        if (ex.ContentIdentity != null && !string.IsNullOrEmpty(ex.ContentIdentity.SourceFilename))
-                        {
-                            message = ex.ContentIdentity.SourceFilename;
-                            if (!string.IsNullOrEmpty(ex.ContentIdentity.FragmentIdentifier))
-                                message += "(" + ex.ContentIdentity.FragmentIdentifier + ")";
-                            message += ": ";
-                        }
-                        message += ex.Message;
-                        Console.WriteLine(message);
-                        ++errorCount;
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.Error.WriteLine("{0}: error: {1}", prevAbsOutputFilepath, ex.Message);
-                        if (ex.InnerException != null)
-                            Console.Error.WriteLine(ex.InnerException.ToString());
-                        ++errorCount;
-                    }
+                    _manager.RegisterContent(c.SourceFile, null, c.Importer, c.Processor, c.ProcessorParams);
                 }
-            }
-            else
-            {
-                if (!(Clean || Rebuild) && !Incremental) // read: is a regular build of the entire project
+                catch
                 {
-                    var usedOutputPaths = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
-
-                    foreach (var c in _content)
-                    {
-                        var absOutputFilepath = c.AssetName;
-                        _manager.ResolveOutputFilepath(c.SourceFile, ref absOutputFilepath, !c.CopyOnly);
-
-                        usedOutputPaths.Add(absOutputFilepath);
-                    }
-
-                    foreach (var prev in previousContent.SourceFiles)
-                    {
-                        var words = prev.Split(';');
-
-                        // old format
-                        if (words.Length < 2)
-                            continue;
-
-                        // old format
-                        var prevAbsOutputFilepath = words[1];
-                        if (!Path.IsPathRooted(prevAbsOutputFilepath))
-                            continue;
-                        
-                        bool inContent = usedOutputPaths.Contains(prevAbsOutputFilepath);
-                        var cleanOldContent = !inContent && !Incremental;
-                        var cleanRebuiltContent = inContent && (Rebuild || Clean);
-
-                        if (cleanRebuiltContent || cleanOldContent || targetChanged)
-                        {
-                            _manager.CleanContent(prevAbsOutputFilepath);
-                        }
-                    }
+                    // Ignore exception. Exception will be handled below.
                 }
             }
 
-            if (!Clean)
+            foreach (var c in _content)
             {
-                // Register all items before they are built, used later to correctly resolve external references.
-                foreach (var c in _content)
+                try
                 {
-                    // jcf: technically, copy items could collide with an external reference name...
-                    //      
-                    if (c.CopyOnly)
-                        continue;
+                    _manager.BuildContent(c.SourceFile,
+                                          null,
+                                          c.Importer,
+                                          c.Processor,
+                                          c.ProcessorParams);
 
-                    try
-                    {
-                        _manager.RegisterContent(c.SourceFile, c.AssetName, c.Importer, c.Processor, c.ProcessorParams);
-                    }
-                    catch
-                    {
-                        // Ignore exception. Exception will be handled below.
-                    }
+                    newContent.SourceFiles.Add(c.SourceFile);
+
+                    ++successCount;
                 }
-
-                foreach (var item in _content)
+                catch (InvalidContentException ex)
                 {
-                    var inputFilePath = item.SourceFile;
-                    var outputFilePath = item.AssetName;
-                    _manager.ResolveOutputFilepath(inputFilePath, ref outputFilePath, !item.CopyOnly);
-
-                    try
+                    var message = string.Empty;
+                    if (ex.ContentIdentity != null && !string.IsNullOrEmpty(ex.ContentIdentity.SourceFilename))
                     {
-                        PipelineBuildEvent buildEvent;
-                        bool wasBuilt = false;
-
-                        if (item.CopyOnly)
-                        {
-                            wasBuilt = _manager.CopyContent(
-                                inputFilePath,
-                                outputFilePath,
-                                out buildEvent);
-                        }
-                        else
-                        {
-                            wasBuilt = _manager.BuildContent(
-                                inputFilePath,
-                                outputFilePath,
-                                item.Importer,
-                                item.Processor,
-                                item.ProcessorParams,
-                                out buildEvent);
-                        }
-
-                        var sourceFileAssetName = string.Concat(buildEvent.SourceFile, ";", buildEvent.DestFile);
-                        newContent.SourceFiles.Add(sourceFileAssetName);
-
-                        if (wasBuilt)
-                            successCount++;
-                        else
-                            skipCount++;
+                        message = ex.ContentIdentity.SourceFilename;
+                        if (!string.IsNullOrEmpty(ex.ContentIdentity.FragmentIdentifier))
+                            message += "(" + ex.ContentIdentity.FragmentIdentifier + ")";
+                        message += ": ";
                     }
-                    catch (InvalidContentException ex)
-                    {
-                        var message = string.Empty;
-                        if (ex.ContentIdentity != null && !string.IsNullOrEmpty(ex.ContentIdentity.SourceFilename))
-                        {
-                            message = ex.ContentIdentity.SourceFilename;
-                            if (!string.IsNullOrEmpty(ex.ContentIdentity.FragmentIdentifier))
-                                message += "(" + ex.ContentIdentity.FragmentIdentifier + ")";
-                            message += ": ";
-                        }
-                        message += ex.Message;
-                        Console.WriteLine(message);
-                        ++errorCount;
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.Error.WriteLine("{0}: error: {1}", inputFilePath, ex.Message);
-                        if (ex.InnerException != null)
-                            Console.Error.WriteLine(ex.InnerException.ToString());
-                        ++errorCount;
-                    }
+                    message += ex.Message;
+                    Console.WriteLine(message);
+                    ++errorCount;
                 }
-
-                // If this is an incremental build we merge the list
-                // of previous content with the new list.
-                if (Incremental && !targetChanged)
-                    newContent.Merge(previousContent);
+                catch (PipelineException ex)
+                {
+                    Console.Error.WriteLine("{0}: error: {1}", c.SourceFile, ex.Message);
+                    if (ex.InnerException != null)
+                        Console.Error.WriteLine(ex.InnerException.ToString());
+                    ++errorCount;
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine("{0}: error: {1}", c.SourceFile, ex.Message);
+                    if (ex.InnerException != null)
+                        Console.Error.WriteLine(ex.InnerException.ToString());
+                    ++errorCount;
+                }
             }
+
+            // If this is an incremental build we merge the list
+            // of previous content with the new list.
+            if (Incremental && !targetChanged)
+                newContent.Merge(previousContent);
 
             // Delete the old file and write the new content 
             // list if we have any to serialize.
             FileHelper.DeleteIfExists(contentFile);
             if (newContent.SourceFiles.Count > 0)
                 newContent.Write(contentFile);
+
+            // Process copy items (files that bypass the content pipeline)
+            foreach (var c in _copyItems)
+            {
+                try
+                {
+                    // Figure out an asset name relative to the project directory,
+                    // retaining the file extension.
+                    // Note that replacing a sub-path like this requires consistent
+                    // directory separator characters.
+                    var relativeName = c.Replace(projectDirectory, string.Empty)
+                                            .TrimStart(Path.DirectorySeparatorChar)
+                                            .TrimStart(Path.AltDirectorySeparatorChar);
+                    var dest = Path.Combine(outputPath, relativeName);
+
+                    // Only copy if the source file is newer than the destination.
+                    // We may want to provide an option for overriding this, but for
+                    // nearly all cases this is the desired behavior.
+                    if (File.Exists(dest))
+                    {
+                        var srcTime = File.GetLastWriteTimeUtc(c);
+                        var dstTime = File.GetLastWriteTimeUtc(dest);
+                        if (srcTime <= dstTime)
+                        {
+                            Console.WriteLine("Skipping {0}", c);
+                            continue;
+                        }
+                    }
+
+                    // Create the destination directory if it doesn't already exist.
+                    var destPath = Path.GetDirectoryName(dest);
+                    if (!Directory.Exists(destPath))
+                        Directory.CreateDirectory(destPath);
+
+                    File.Copy(c, dest, true);
+
+                    // Destination file should not be read-only even if original was.
+                    var fileAttr = File.GetAttributes(dest);
+                    fileAttr = fileAttr & (~FileAttributes.ReadOnly);
+                    File.SetAttributes(dest, fileAttr);
+
+                    ++successCount;
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine("{0}: error: {1}", c, ex.Message);
+                    if (ex.InnerException != null)
+                        Console.Error.WriteLine(ex.InnerException.ToString());
+
+                    ++errorCount;
+                }
+            }
         }
     }
 }
