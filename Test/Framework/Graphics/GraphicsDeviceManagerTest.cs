@@ -54,8 +54,8 @@ namespace MonoGame.Tests.Graphics
             gdm.PreparingDeviceSettings += (s, a) => preparingCount++;
             gdm.DeviceCreated += (s, a) => createdCount++;
             gdm.DeviceDisposing += (s, a) => devDispCount++;
-            // TODO: re-add this when DesktopGL platfrom uses the new GDM
-#if !DESKTOPGL
+            // TODO remove MonoMac
+#if !MONOMAC
             gdm.Disposed += (s, a) => dispCount++;
 #endif
 
@@ -326,7 +326,7 @@ namespace MonoGame.Tests.Graphics
     internal class GraphicsDeviceManagerFixtureTest : GraphicsDeviceTestFixtureBase
     {
         [Test]
-        public void ResettingDeviceTriggersGdmEvents()
+        public void ResettingDeviceTriggersResetEvents()
         {
             var resetCount = 0;
             var resettingCount = 0;
@@ -344,6 +344,29 @@ namespace MonoGame.Tests.Graphics
 
             Assert.AreEqual(1, resetCount);
             Assert.AreEqual(1, resettingCount);
+        }
+        
+        [Test]
+        public void NewDeviceDoesNotTriggerReset()
+        {
+            var resetCount = 0;
+            var devLostCount = 0;
+
+            gd.DeviceReset += (sender, args) =>
+            {
+                resetCount++;
+            };
+            gd.DeviceLost += (sender, args) =>
+            {
+                devLostCount++;
+            };
+
+            // changing the profile requires creating a new device
+            gdm.GraphicsProfile = GraphicsProfile.Reach;
+            gdm.ApplyChanges();
+
+            Assert.AreEqual(0, resetCount);
+            Assert.AreEqual(0, devLostCount);
         }
 
         [Test]
@@ -468,5 +491,58 @@ namespace MonoGame.Tests.Graphics
             tex.Dispose();
             spriteBatch.Dispose();
         }
+
+        [Test]
+        public void UnsupportedMultiSampleCountDoesNotThrowException()
+        {
+            gdm.PreferMultiSampling = true;
+
+            gdm.PreparingDeviceSettings += (sender, args) =>
+            {
+                var pp = args.GraphicsDeviceInformation.PresentationParameters;
+                pp.MultiSampleCount = 33; // Set too high. In DX11 is max 32.
+            };
+
+            Assert.DoesNotThrow(()=>gdm.ApplyChanges(), "GraphicDeviceManager.ApplyChanges()");
+            Assert.DoesNotThrow(() =>
+            {
+                var pp = gdm.GraphicsDevice.PresentationParameters.Clone();
+                pp.MultiSampleCount = 10000; // Set too high. In DX11 is max 32.
+                gdm.GraphicsDevice.Reset(pp);
+            }, "GraphicsDevice.Reset(PresentationParameters)");
+        }
+
+#if DIRECTX
+        [Test]
+        public void TooHighMultiSampleCountClampedToMaxSupported()
+        {
+            gdm.PreferMultiSampling = true;
+
+            gdm.PreparingDeviceSettings += (sender, args) =>
+            {
+                var pp1 = args.GraphicsDeviceInformation.PresentationParameters;
+                pp1.MultiSampleCount = 33;
+            };
+            gdm.ApplyChanges();
+
+            // Reference device supports 32 samples
+            Assert.AreEqual
+                (gdm.GraphicsDevice.PresentationParameters.MultiSampleCount, 32);
+
+            // Test again for GraphicsDevice.Reset(PresentationParameters)
+            var pp2 = gdm.GraphicsDevice.PresentationParameters.Clone();
+            pp2.MultiSampleCount = 0;
+            gdm.GraphicsDevice.Reset(pp2);
+            Assert.AreEqual
+                (gdm.GraphicsDevice.PresentationParameters.MultiSampleCount, 0);
+            var pp3 = gdm.GraphicsDevice.PresentationParameters.Clone();
+            pp3.MultiSampleCount = 500; // Set too high. In DX11 is max 32.
+            gdm.GraphicsDevice.Reset(pp3);
+            // Reference device supports 32 samples
+            Assert.AreEqual
+                (gdm.GraphicsDevice.PresentationParameters.MultiSampleCount, 32);
+            
+        }
+#endif
     }
 }

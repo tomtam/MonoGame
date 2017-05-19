@@ -4,6 +4,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using Microsoft.Xna.Framework.Utilities;
 #if MONOMAC && PLATFORM_MACOS_LEGACY
 using MonoMac.OpenGL;
 using GLPixelFormat = MonoMac.OpenGL.All;
@@ -12,6 +13,7 @@ using Bool = MonoMac.OpenGL.Boolean;
 #if (MONOMAC && !PLATFORM_MACOS_LEGACY)
 using OpenTK.Graphics.OpenGL;
 using GLPixelFormat = OpenTK.Graphics.OpenGL.All;
+using PixelInternalFormat = OpenTK.Graphics.OpenGL.PixelFormat;
 using Bool = OpenTK.Graphics.OpenGL.Boolean;
 #endif
 #if DESKTOPGL
@@ -23,6 +25,7 @@ using PixelFormat = OpenGL.PixelFormat;
 using OpenTK.Graphics.ES20;
 using GLPixelFormat = OpenTK.Graphics.ES20.All;
 using PixelFormat = OpenTK.Graphics.ES20.PixelFormat;
+using PixelInternalFormat = OpenTK.Graphics.ES20.PixelFormat;
 #endif
 
 namespace Microsoft.Xna.Framework.Graphics
@@ -102,6 +105,8 @@ namespace Microsoft.Xna.Framework.Graphics
 #if IOS || ANDROID
 				    GL.GenerateMipmap(TextureTarget.TextureCubeMap);
 #else
+                    GraphicsDevice.FramebufferHelper.Get().GenerateMipmap((int) glTarget);
+                    // This updates the mipmaps after a change in the base texture
                     GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.GenerateMipmap, (int)Bool.True);
 #endif
                     GraphicsExtensions.CheckGLError();
@@ -111,31 +116,56 @@ namespace Microsoft.Xna.Framework.Graphics
 
         private void PlatformGetData<T>(CubeMapFace cubeMapFace, int level, Rectangle rect, T[] data, int startIndex, int elementCount) where T : struct
         {
+            Threading.EnsureUIThread();
+
 #if OPENGL && (MONOMAC || DESKTOPGL)
+            var target = GetGLCubeFace(cubeMapFace);
+            var tSizeInByte = ReflectionHelpers.SizeOf<T>.Get();
+            GL.BindTexture(TextureTarget.TextureCubeMap, this.glTexture);
+
             if (glFormat == (PixelFormat) GLPixelFormat.CompressedTextureFormats)
             {
-                throw new NotImplementedException();
+                // Note: for compressed format Format.GetSize() returns the size of a 4x4 block
+                var pixelToT = Format.GetSize() / tSizeInByte;
+                var tFullWidth = Math.Max(this.size >> level, 1) / 4 * pixelToT;
+                var temp = new T[Math.Max(this.size >> level, 1) / 4 * tFullWidth];
+
+#if MONOMAC
+                var tempHandle = GCHandle.Alloc(temp, GCHandleType.Pinned);
+                var ptr = tempHandle.AddrOfPinnedObject();
+                GL.GetCompressedTexImage(TextureTarget.Texture2D, level, ptr);
+                tempHandle.Free();
+#else
+                GL.GetCompressedTexImage(target, level, temp);
+#endif
+
+                GraphicsExtensions.CheckGLError();
+
+                var rowCount = rect.Height / 4;
+                var tRectWidth = rect.Width / 4 * Format.GetSize() / tSizeInByte;
+                for (var r = 0; r < rowCount; r++)
+                {
+                    var tempStart = rect.X / 4 * pixelToT + (rect.Top / 4 + r) * tFullWidth;
+                    var dataStart = startIndex + r * tRectWidth;
+                    Array.Copy(temp, tempStart, data, dataStart, tRectWidth);
+                }
             }
             else
             {
-                var target = GetGLCubeFace(cubeMapFace);
-                GL.BindTexture(TextureTarget.TextureCubeMap, this.glTexture);
+                // we need to convert from our format size to the size of T here
+                var tFullWidth = Math.Max(this.size >> level, 1) * Format.GetSize() / tSizeInByte;
+                var temp = new T[Math.Max(this.size >> level, 1) * tFullWidth];
+                GL.GetTexImage(target, level, glFormat, glType, temp);
                 GraphicsExtensions.CheckGLError();
 
-                var temp = new T[this.size * this.size];
-                GL.GetTexImage(target, level, this.glFormat, this.glType, temp);
-                GraphicsExtensions.CheckGLError();
-                int z = 0, w = 0;
-
-                for (var y = rect.Y; y < rect.Y + rect.Height; ++y)
+                var pixelToT = Format.GetSize() / tSizeInByte;
+                var rowCount = rect.Height;
+                var tRectWidth = rect.Width * pixelToT;
+                for (var r = 0; r < rowCount; r++)
                 {
-                    for (var x = rect.X; x < rect.X + rect.Width; ++x)
-                    {
-                        data[startIndex + z*rect.Width + w] = temp[y*size + x];
-                        ++w;
-                    }
-                    ++z;
-                    w = 0;
+                    var tempStart = rect.X * pixelToT + (r + rect.Top) * tFullWidth;
+                    var dataStart = startIndex + r * tRectWidth;
+                    Array.Copy(temp, tempStart, data, dataStart, tRectWidth);
                 }
             }
 #else
@@ -147,20 +177,22 @@ namespace Microsoft.Xna.Framework.Graphics
         {
             Threading.BlockOnUIThread(() =>
             {
-                var elementSizeInByte = Utilities.ReflectionHelpers.SizeOf<T>.Get();
+                var elementSizeInByte = ReflectionHelpers.SizeOf<T>.Get();
                 var dataHandle = GCHandle.Alloc(data, GCHandleType.Pinned);
                 // Use try..finally to make sure dataHandle is freed in case of an error
                 try
                 {
                     var startBytes = startIndex * elementSizeInByte;
-                    var dataPtr = (IntPtr) (dataHandle.AddrOfPinnedObject().ToInt64() + startIndex*elementSizeInByte);
+                    var dataPtr = new IntPtr(dataHandle.AddrOfPinnedObject().ToInt64() + startBytes);
+
                     GL.BindTexture(TextureTarget.TextureCubeMap, this.glTexture);
                     GraphicsExtensions.CheckGLError();
 
                     var target = GetGLCubeFace(face);
                     if (glFormat == (PixelFormat) GLPixelFormat.CompressedTextureFormats)
                     {
-                        GL.CompressedTexSubImage2D(target, level, rect.X, rect.Y, rect.Width, rect.Height, (PixelFormat)glInternalFormat, elementCount * startBytes, dataPtr);
+                        GL.CompressedTexSubImage2D(target, level, rect.X, rect.Y, rect.Width, rect.Height,
+                            (PixelInternalFormat) glInternalFormat, elementCount * elementSizeInByte, dataPtr);
                         GraphicsExtensions.CheckGLError();
                     }
                     else
@@ -177,9 +209,9 @@ namespace Microsoft.Xna.Framework.Graphics
             });
         }
 
-		private TextureTarget GetGLCubeFace(CubeMapFace face) 
+		private TextureTarget GetGLCubeFace(CubeMapFace face)
         {
-			switch (face) 
+			switch (face)
             {
 			case CubeMapFace.PositiveX: return TextureTarget.TextureCubeMapPositiveX;
 			case CubeMapFace.NegativeX: return TextureTarget.TextureCubeMapNegativeX;

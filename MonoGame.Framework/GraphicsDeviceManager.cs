@@ -136,6 +136,7 @@ namespace Microsoft.Xna.Framework
 
             // update the touchpanel display size when the graphicsdevice is reset
             _graphicsDevice.DeviceReset += UpdateTouchPanel;
+            _graphicsDevice.PresentationChanged += OnPresentationChanged;
 
             OnDeviceCreated(EventArgs.Empty);
         }
@@ -210,25 +211,6 @@ namespace Microsoft.Xna.Framework
 
                 if (gdi.PresentationParameters == null || gdi.Adapter == null)
                     throw new NullReferenceException("Members should not be set to null in PreparingDeviceSettingsEventArgs");
-
-                if (gdi.PresentationParameters.MultiSampleCount > 0)
-                {
-                    // Round down MultiSampleCount to the nearest power of two
-                    // hack from http://stackoverflow.com/a/2681094
-                    var msc = gdi.PresentationParameters.MultiSampleCount;
-                    msc = msc | (msc >> 1);
-                    msc = msc | (msc >> 2);
-                    msc = msc | (msc >> 4);
-
-                    if (GraphicsDevice != null)
-                    {
-                        // and clamp it to what the device can handle
-                        if (msc > GraphicsDevice.GraphicsCapabilities.MaxMultiSampleCount)
-                            msc = GraphicsDevice.GraphicsCapabilities.MaxMultiSampleCount;
-                    }
-
-                    gdi.PresentationParameters.MultiSampleCount = msc - (msc >> 1);
-                }
             }
 
             return gdi;
@@ -273,6 +255,8 @@ namespace Microsoft.Xna.Framework
 
         partial void PlatformApplyChanges();
 
+        partial void PlatformPreparePresentationParameters(PresentationParameters presentationParameters);
+
         private void PreparePresentationParameters(PresentationParameters presentationParameters)
         {
             presentationParameters.BackBufferFormat = _preferredBackBufferFormat;
@@ -280,6 +264,7 @@ namespace Microsoft.Xna.Framework
             presentationParameters.BackBufferHeight = _preferredBackBufferHeight;
             presentationParameters.DepthStencilFormat = _preferredDepthStencilFormat;
             presentationParameters.IsFullScreen = _wantFullScreen;
+            presentationParameters.HardwareModeSwitch = _hardwareModeSwitch;
             presentationParameters.PresentationInterval = _synchronizedWithVerticalRetrace ? PresentInterval.One : PresentInterval.Immediate;
             presentationParameters.DisplayOrientation = _game.Window.CurrentOrientation;
             presentationParameters.DeviceWindowHandle = _game.Window.Handle;
@@ -297,6 +282,8 @@ namespace Microsoft.Xna.Framework
             {
                 presentationParameters.MultiSampleCount = 0;
             }
+
+            PlatformPreparePresentationParameters(presentationParameters);
         }
 
         private void PrepareGraphicsDeviceInformation(GraphicsDeviceInformation gdi)
@@ -338,9 +325,6 @@ namespace Microsoft.Xna.Framework
             }
 
             GraphicsDevice.Reset(gdi.PresentationParameters);
-
-            // Update the platform window.
-            _game.Platform.OnPresentationChanged();
 
             _shouldApplyChanges = false;
         }
@@ -387,6 +371,11 @@ namespace Microsoft.Xna.Framework
         {
             IsFullScreen = !IsFullScreen;
             ApplyChanges();
+        }
+
+        private void OnPresentationChanged(object sender, EventArgs args)
+        {
+            _game.Platform.OnPresentationChanged();
         }
 
         /// <summary>

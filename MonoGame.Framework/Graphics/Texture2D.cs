@@ -21,6 +21,10 @@ namespace Microsoft.Xna.Framework.Graphics
 		internal int width;
 		internal int height;
         internal int ArraySize;
+                
+        internal float TexelWidth { get; private set; }
+        internal float TexelHeight { get; private set; }
+
         /// <summary>
         /// Gets the dimensions of the texture
         /// </summary>
@@ -97,6 +101,9 @@ namespace Microsoft.Xna.Framework.Graphics
             this.GraphicsDevice = graphicsDevice;
             this.width = width;
             this.height = height;
+            this.TexelWidth = 1f / (float)width;
+            this.TexelHeight = 1f / (float)height;
+
             this._format = format;
             this._levelCount = mipmap ? CalculateMipLevels(width, height) : 1;
             this.ArraySize = arraySize;
@@ -240,10 +247,14 @@ namespace Microsoft.Xna.Framework.Graphics
         /// Creates a Texture2D from a stream, supported formats bmp, gif, jpg, png, tif and dds (only for simple textures).
         /// May work with other formats, but will not work with tga files.
         /// </summary>
-        /// <param name="graphicsDevice"></param>
-        /// <param name="stream"></param>
-        /// <returns></returns>
-		public static Texture2D FromStream(GraphicsDevice graphicsDevice, Stream stream)
+        /// <param name="graphicsDevice">The graphics device where the texture will be created.</param>
+        /// <param name="stream">The stream from which to read the image data.</param>
+        /// <returns>The <see cref="SurfaceFormat.Color"/> texture created from the image stream.</returns>
+        /// <remarks>Note that different image decoders may generate slight differences between platforms, but perceptually 
+        /// the images should be identical.  This call does not premultiply the image alpha, but areas of zero alpha will
+        /// result in black color data.
+        /// </remarks>
+        public static Texture2D FromStream(GraphicsDevice graphicsDevice, Stream stream)
 		{
             if (graphicsDevice == null)
                 throw new ArgumentNullException("graphicsDevice");
@@ -332,8 +343,8 @@ namespace Microsoft.Xna.Framework.Graphics
                     // OpenGL only: The last two mip levels require the width and height to be
                     // passed as 2x2 and 1x1, but there needs to be enough data passed to occupy
                     // a 4x4 block.
-                    checkedRect.Width > 4 ? roundedWidth : checkedRect.Width,
-                    checkedRect.Height > 4 ? roundedHeight : checkedRect.Height);
+                    checkedRect.Width < 4 && textureBounds.Width < 4 ? textureBounds.Width : roundedWidth,
+                    checkedRect.Height < 4 && textureBounds.Height < 4 ? textureBounds.Height : roundedHeight);
 #else
                     roundedWidth, roundedHeight);
 #endif

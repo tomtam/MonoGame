@@ -18,8 +18,11 @@ namespace MonoGame.Tests.Graphics
 
 #if !XNA
         [TestCase("Assets/Textures/LogoOnly_64px.bmp")]
-        [TestCase("Assets/Textures/LogoOnly_64px.dds")]
         [TestCase("Assets/Textures/LogoOnly_64px.tif")]
+#if !DESKTOPGL
+        // not supported
+        [TestCase("Assets/Textures/LogoOnly_64px.dds")]
+#endif
 #endif
         [TestCase("Assets/Textures/LogoOnly_64px.gif")]
         [TestCase("Assets/Textures/LogoOnly_64px.jpg")]
@@ -74,6 +77,56 @@ namespace MonoGame.Tests.Graphics
 #endif
         }
 
+        [TestCase]
+        public void FromStreamNotPremultiplied()
+        {
+            // XNA will not try to premultiply your image on
+            // load... this test verifies that this doesn't occur.
+
+            using (var stream = File.OpenRead("Assets/Textures/red_128.png"))
+            using (var texture = Texture2D.FromStream(gd, stream))
+            {
+                Assert.AreEqual(8, texture.Width);
+                Assert.AreEqual(8, texture.Height);
+                Assert.AreEqual(1, texture.LevelCount);
+                var pngData = new Color[8 * 8];
+                texture.GetData(pngData);
+
+                for (var i = 0; i < pngData.Length; i++)
+                {
+                    Assert.AreEqual(255,    pngData[i].R);
+                    Assert.AreEqual(0,      pngData[i].G);
+                    Assert.AreEqual(0,      pngData[i].B);
+                    Assert.AreEqual(128,    pngData[i].A);
+                }
+            }
+        }
+
+        [TestCase]
+        public void FromStreamBlackAlpha()
+        {
+            // XNA will make any pixel with an alpha value
+            // of 0 into black throwing out any color data.
+
+            using (var stream = File.OpenRead("Assets/Textures/blue_0.png"))
+            using (var texture = Texture2D.FromStream(gd, stream))
+            {
+                Assert.AreEqual(8, texture.Width);
+                Assert.AreEqual(8, texture.Height);
+                Assert.AreEqual(1, texture.LevelCount);
+                var pngData = new Color[8 * 8];
+                texture.GetData(pngData);
+
+                for (var i = 0; i < pngData.Length; i++)
+                {
+                    Assert.AreEqual(0, pngData[i].R);
+                    Assert.AreEqual(0, pngData[i].G);
+                    Assert.AreEqual(0, pngData[i].B);
+                    Assert.AreEqual(0, pngData[i].A);
+                }
+            }
+        }
+        
         [Test]
         public void ZeroSizeShouldFailTest()
         {
@@ -81,6 +134,32 @@ namespace MonoGame.Tests.Graphics
             Assert.Throws<ArgumentOutOfRangeException>(() => texture = new Texture2D(gd, 0, 1));
             Assert.Throws<ArgumentOutOfRangeException>(() => texture = new Texture2D(gd, 1, 0));
             Assert.Throws<ArgumentOutOfRangeException>(() => texture = new Texture2D(gd, 0, 0));
+        }
+
+        [Test]
+        public void SimpleGetSetDataTest()
+        {
+            using (var tex = new Texture2D(gd, 4, 4, false, SurfaceFormat.Color))
+            {
+                const int startIndex = 5;
+                const int x = 2;
+                const int y = 2;
+                const int width = 2;
+                const int height = 2;
+                const int elementCount = 4 * width * height;
+
+                var data = new byte[startIndex + elementCount];
+                for (var i = 0; i < data.Length; i++)
+                    data[i] = (byte) i;
+
+                var rect = new Rectangle(x, y, width, height);
+
+                tex.SetData(0, rect, data, startIndex, elementCount);
+                tex.GetData(0, rect, data, startIndex, elementCount);
+
+                for (var i = 0; i < data.Length; i++)
+                    Assert.AreEqual(i, data[i]);
+            }
         }
 
         [TestCase(25, 23, 1, 1, 0, 1)]
@@ -199,7 +278,10 @@ namespace MonoGame.Tests.Graphics
         }
 
         [TestCase(SurfaceFormat.HalfSingle, (short)(160 << 8 + 120))]
+#if !DESKTOPGL
+        // format not supported
         [TestCase(SurfaceFormat.Vector4, (long)(200 << 48 + 180 << 32 + 160 << 16 + 120))]
+#endif
         [TestCase(SurfaceFormat.Vector2, (float)(200 << 48 + 180 << 32 + 160 << 16 + 120))]
         [TestCase(SurfaceFormat.Color, (float)(200 << 24 + 180 << 16 + 160 << 8 + 120))]
         [TestCase(SurfaceFormat.Color, (byte)150)]

@@ -38,13 +38,6 @@ namespace Microsoft.Xna.Framework.Graphics
         /// </summary>
         internal bool SupportsFramebufferObjectEXT { get; private set; }
 
-        /// <summary>
-        /// Gets the max texture anisotropy. This value typically lies
-        /// between 0 and 16, where 0 means anisotropic filtering is not
-        /// supported.
-        /// </summary>
-        internal int MaxTextureAnisotropy { get; private set; }
-
         private void PlatformInitialize(GraphicsDevice device)
         {
 #if GLES
@@ -97,7 +90,7 @@ namespace Microsoft.Xna.Framework.Graphics
             int anisotropy = 0;
             if (SupportsTextureFilterAnisotropic)
             {
-#if __IOS__
+#if __IOS__ || __TVOS__
                 GL.GetInteger ((GetPName)All.MaxTextureMaxAnisotropyExt, out anisotropy);
 #else
                 GL.GetInteger((GetPName)GetParamName.MaxTextureMaxAnisotropyExt, out anisotropy);
@@ -120,11 +113,15 @@ namespace Microsoft.Xna.Framework.Graphics
             SupportsDepthClamp = device._extensions.Contains("GL_ARB_depth_clamp");
 
             SupportsVertexTextures = false; // For now, until we implement vertex textures in OpenGL.
+
+#if __IOS__ || __TVOS__
+            GL.GetInteger((GetPName)All.MaxSamplesApple, out _maxMultiSampleCount);
+#elif ANDROID
+            GL.GetInteger((GetPName) GetParamName.MaxSamplesExt, out _maxMultiSampleCount);
+#else
+            GL.GetInteger((GetPName)GetParamName.MaxSamples, out _maxMultiSampleCount);
+#endif
         }
 
-        private void PlatformInitializeAfterResources(GraphicsDevice device)
-        {
-            
-        }
     }
 }

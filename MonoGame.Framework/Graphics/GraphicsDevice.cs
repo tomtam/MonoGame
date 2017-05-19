@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using Microsoft.Xna.Framework.Utilities;
 
 
 namespace Microsoft.Xna.Framework.Graphics
@@ -121,6 +122,8 @@ namespace Microsoft.Xna.Framework.Graphics
 		public event EventHandler<ResourceDestroyedEventArgs> ResourceDestroyed;
         public event EventHandler<EventArgs> Disposing;
 
+        internal event EventHandler<EventArgs> PresentationChanged;
+
         private int _maxVertexBufferSlots;
         internal int MaxTextureSlots;
         internal int MaxVertexTextureSlots;
@@ -178,7 +181,7 @@ namespace Microsoft.Xna.Framework.Graphics
         {
         }
 
-        internal GraphicsDevice ()
+        internal GraphicsDevice()
 		{
             PresentationParameters = new PresentationParameters();
             PresentationParameters.DepthStencilFormat = DepthFormat.Depth24;
@@ -201,13 +204,8 @@ namespace Microsoft.Xna.Framework.Graphics
         {
             if (adapter == null)
                 throw new ArgumentNullException("adapter");
-#if DIRECTX
             if (!adapter.IsProfileSupported(graphicsProfile))
                 throw new NoSuitableGraphicsDeviceException(String.Format("Adapter '{0}' does not support the {1} profile.", adapter.Description, graphicsProfile));
-#else
-            if (!adapter.IsProfileSupported(graphicsProfile))
-                throw new NoSuitableGraphicsDeviceException(String.Format("Adapter does not support the {1} profile.", graphicsProfile));
-#endif
             if (presentationParameters == null)
                 throw new ArgumentNullException("presentationParameters");
             Adapter = adapter;
@@ -271,10 +269,32 @@ namespace Microsoft.Xna.Framework.Graphics
             Dispose(false);
         }
 
+        private int GetClampedMultisampleCount(
+            int multiSampleCount)
+        {
+            if (multiSampleCount > 1)
+            {
+                // Round down MultiSampleCount to the nearest power of two
+                // hack from http://stackoverflow.com/a/2681094
+                // Note: this will return an incorrect, but large value
+                // for very large numbers. That doesn't matter because
+                // the number will get clamped below anyway in this case.
+                var msc = multiSampleCount;
+                msc = msc | (msc >> 1);
+                msc = msc | (msc >> 2);
+                msc = msc | (msc >> 4);
+                msc -= (msc >> 1);
+                // and clamp it to what the device can handle
+                if (msc > GraphicsCapabilities.MaxMultiSampleCount)
+                    msc = GraphicsCapabilities.MaxMultiSampleCount;
+
+                return msc;
+            }
+            else return 0;
+        }
         internal void Initialize()
         {
             PlatformInitialize();
-            GraphicsCapabilities.InitializeAfterResources(this);
 
             // Force set the default render states.
             _blendStateDirty = _depthStencilStateDirty = _rasterizerStateDirty = true;
@@ -560,51 +580,32 @@ namespace Microsoft.Xna.Framework.Graphics
         }
         */
 
-#if WINDOWS && DIRECTX
+        partial void PlatformValidatePresentationParameters(PresentationParameters presentationParameters);
+
         public void Reset()
         {
+            PlatformValidatePresentationParameters(PresentationParameters);
+
             if (DeviceResetting != null)
                 DeviceResetting(this, EventArgs.Empty);
 
             // Update the back buffer.
             OnPresentationChanged();
 
+            if (PresentationChanged != null)
+                PresentationChanged(this, EventArgs.Empty);
             if (DeviceReset != null)
                 DeviceReset(this, EventArgs.Empty);
-
-            if (DeviceLost != null)
-                DeviceLost(this, EventArgs.Empty);
         }
 
         public void Reset(PresentationParameters presentationParameters)
         {
             if (presentationParameters == null)
                 throw new ArgumentNullException("presentationParameters");
-            if (presentationParameters.DeviceWindowHandle == IntPtr.Zero)
-                throw new ArgumentException("PresentationParameters.DeviceWindowHandle must not be null.");
 
             PresentationParameters = presentationParameters;
             Reset();
         }
-#else
-        // TODO: implement these
-        public void Reset()
-        {
-            
-        }
-
-        public void Reset(PresentationParameters presentationParameters)
-        {
-
-        }
-#endif
-
-        /*
-        public void Reset(PresentationParameters presentationParameters, GraphicsAdapter graphicsAdapter)
-        {
-            throw new NotImplementedException();
-        }
-        */
 
         /// <summary>
         /// Trigger the DeviceResetting event
@@ -1132,6 +1133,9 @@ namespace Microsoft.Xna.Framework.Graphics
             if (vertexDeclaration == null)
                 throw new ArgumentNullException("vertexDeclaration");
 
+            if (vertexDeclaration.VertexStride < ReflectionHelpers.SizeOf<T>.Get())
+                throw new ArgumentOutOfRangeException("vertexDeclaration", "Vertex stride of vertexDeclaration should be at least as big as the stride of the actual vertices.");
+
             PlatformDrawUserIndexedPrimitives<T>(primitiveType, vertexData, vertexOffset, numVertices, indexData, indexOffset, primitiveCount, vertexDeclaration);
 
             unchecked
@@ -1209,6 +1213,9 @@ namespace Microsoft.Xna.Framework.Graphics
             if (vertexDeclaration == null)
                 throw new ArgumentNullException("vertexDeclaration");
 
+            if (vertexDeclaration.VertexStride < ReflectionHelpers.SizeOf<T>.Get())
+                throw new ArgumentOutOfRangeException("vertexDeclaration", "Vertex stride of vertexDeclaration should be at least as big as the stride of the actual vertices.");
+
             PlatformDrawUserIndexedPrimitives<T>(primitiveType, vertexData, vertexOffset, numVertices, indexData, indexOffset, primitiveCount, vertexDeclaration);
             
             unchecked
@@ -1283,11 +1290,6 @@ namespace Microsoft.Xna.Framework.Graphics
             }
 
             throw new NotSupportedException();
-        }
-
-        internal static GraphicsProfile GetHighestSupportedGraphicsProfile(GraphicsDevice graphicsDevice)
-        {
-            return PlatformGetHighestSupportedGraphicsProfile(graphicsDevice);
         }
 
         // uniformly scales down the given rectangle by 10%
