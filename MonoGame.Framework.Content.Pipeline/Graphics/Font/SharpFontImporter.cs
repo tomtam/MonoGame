@@ -177,11 +177,8 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Graphics
             for(int i = 7; i > 7 - length; i--)
             {
                 tmp = (byte) (1 << i);
-                if(origin / tmp == 1)
-                {
+				if ((origin & tmp) > 0)
                     destination[startIndex + 7 - i] = byte.MaxValue;
-                    origin -= tmp;
-                }
                 else
                     destination[startIndex + 7 - i] = byte.MinValue;
             }
