@@ -196,8 +196,9 @@ namespace Microsoft.Xna.Framework.Graphics
         {
             Rectangle checkedRect;
             ValidateParams(0, 0, null, data, startIndex, elementCount, out checkedRect);
-            PlatformSetData(0, data, startIndex, elementCount);
+            PlatformSetData(0, 0, checkedRect, data, startIndex, elementCount);
         }
+
 		/// <summary>
         /// Changes the texture's pixels
         /// </summary>
@@ -207,7 +208,8 @@ namespace Microsoft.Xna.Framework.Graphics
 		{
             Rectangle checkedRect;
             ValidateParams(0, 0, null, data, 0, data.Length, out checkedRect);
-            PlatformSetData(0, data, 0, data.Length);
+
+            PlatformSetData(0, 0, checkedRect, data, 0, data.Length);
         }
         /// <summary>
         /// Retrieves the contents of the texture
@@ -225,6 +227,7 @@ namespace Microsoft.Xna.Framework.Graphics
         {
             Rectangle checkedRect;
             ValidateParams(level, arraySlice, rect, data, startIndex, elementCount, out checkedRect);
+
             PlatformGetData(level, arraySlice, checkedRect, data, startIndex, elementCount);
         }
         /// <summary>
