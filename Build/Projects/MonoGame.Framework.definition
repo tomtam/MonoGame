@@ -49,6 +49,8 @@
       <Platform Name="WindowsUniversal">TRACE;NETFX_CORE;WINDOWS_UAP;WINRT;DIRECTX;DIRECTX11_1;WINDOWS_MEDIA_ENGINE</Platform>
       <Platform Name="Web">TRACE;WEB</Platform>
     </CustomDefinitions>
+	
+	<DefineNET4DetectionConstant>True</DefineNET4DetectionConstant>
 
     <FrameworkVersions>
 	  <Platform Name="Windows8">
@@ -490,6 +492,7 @@
     <Compile Include="Content\ContentReaders\ListReader.cs" />
     <Compile Include="Content\ContentReaders\MatrixReader.cs" />
     <Compile Include="Content\ContentReaders\ModelReader.cs" />
+    <Compile Include="Content\ContentReaders\MultiArrayReader.cs" />
     <Compile Include="Content\ContentReaders\NullableReader.cs" />
     <Compile Include="Content\ContentReaders\PlaneReader.cs" />
     <Compile Include="Content\ContentReaders\PointReader.cs" />
@@ -622,6 +625,14 @@
     <Compile Include="Graphics\GraphicsContext.SDL.cs">
       <Platforms>WindowsGL,Linux</Platforms>
     </Compile>
+    <Compile Include="Graphics\GraphicsDebug.cs" />
+    <Compile Include="Graphics\GraphicsDebug.DirectX.cs">
+      <Services>DirectXGraphics</Services>
+    </Compile>
+    <Compile Include="Graphics\GraphicsDebug.Default.cs">
+      <Services>OpenGLGraphics,WebGraphics,ANGLEGraphics</Services>
+    </Compile>
+    <Compile Include="Graphics\GraphicsDebugMessage.cs" />
     <Compile Include="Graphics\GraphicsDevice.cs" />
     <Compile Include="Graphics\GraphicsDevice.DirectX.cs">
       <Services>DirectXGraphics</Services>
@@ -1402,7 +1413,7 @@
     <Compile Include="Windows8\MetroHelper.cs">
       <Platforms>Windows8,WindowsPhone81,WindowsUniversal</Platforms>
     </Compile>
-    <Compile Include="Windows8\SharpDXHelper.cs">
+    <Compile Include="Windows\SharpDXHelper.cs">
       <Platforms>Windows8,Windows,WindowsPhone81,WindowsUniversal</Platforms>
     </Compile>
     <Compile Include="Windows8\XamlGame.cs">
@@ -1423,6 +1434,9 @@
 
 
     <!-- Windows Desktop Platfom -->
+    <Compile Include="Windows\HorizontalMouseWheelEventArgs.cs">
+      <Platforms>Windows</Platforms>
+    </Compile>
     <Compile Include="Windows\WinFormsGameForm.cs">
       <Platforms>Windows</Platforms>
     </Compile>

@@ -75,31 +75,34 @@ namespace Microsoft.Xna.Framework.Graphics
         {
             this.glTarget = TextureTarget.Texture2D;
             format.GetGLFormat(GraphicsDevice, out glInternalFormat, out glFormat, out glType);
-            GenerateGLTextureIfRequired();
-            int w = width;
-            int h = height;
-            int level = 0;
-            while (true)
+            Threading.BlockOnUIThread(() =>
             {
-                if (glFormat == (PixelFormat)GLPixelFormat.CompressedTextureFormats)
+                GenerateGLTextureIfRequired();
+                int w = width;
+                int h = height;
+                int level = 0;
+                while (true)
                 {
-                    int blockSize = format.GetSize();
-                    int wBlocks = (w + 3) / 4;
-                    int hBlocks = (h + 3) / 4;
-                    GL.CompressedTexImage2D(TextureTarget.Texture2D, level, glInternalFormat, w, h, 0, wBlocks * hBlocks * blockSize, IntPtr.Zero);
-                }
-                else
-                    GL.TexImage2D(TextureTarget.Texture2D, level, glInternalFormat, w, h, 0, glFormat, glType, IntPtr.Zero);
-                GraphicsExtensions.CheckGLError();
+                    if (glFormat == (PixelFormat)GLPixelFormat.CompressedTextureFormats)
+                    {
+                        int blockSize = format.GetSize();
+                        int wBlocks = (w + 3) / 4;
+                        int hBlocks = (h + 3) / 4;
+                        GL.CompressedTexImage2D(TextureTarget.Texture2D, level, glInternalFormat, w, h, 0, wBlocks * hBlocks * blockSize, IntPtr.Zero);
+                    }
+                    else
+                        GL.TexImage2D(TextureTarget.Texture2D, level, glInternalFormat, w, h, 0, glFormat, glType, IntPtr.Zero);
+                    GraphicsExtensions.CheckGLError();
 
-                if ((w == 1 && h == 1) || !mipmap)
-                    break;
-                if (w > 1)
-                    w = w / 2;
-                if (h > 1)
-                    h = h / 2;
-                ++level;
-            }
+                    if ((w == 1 && h == 1) || !mipmap)
+                        break;
+                    if (w > 1)
+                        w = w / 2;
+                    if (h > 1)
+                        h = h / 2;
+                    ++level;
+                }
+            });
         }
 
         private void PlatformSetData<T>(int level, T[] data, int startIndex, int elementCount) where T : struct
@@ -663,9 +666,7 @@ namespace Microsoft.Xna.Framework.Graphics
                 GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)wrap);
                 GraphicsExtensions.CheckGLError();
                 // Set mipmap levels
-#if GLES
-                GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName)0x813C, 0);
-#else
+#if !GLES
                 GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureBaseLevel, 0);
 #endif
                 GraphicsExtensions.CheckGLError();

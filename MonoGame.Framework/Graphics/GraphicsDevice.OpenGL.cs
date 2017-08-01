@@ -300,6 +300,10 @@ namespace Microsoft.Xna.Framework.Graphics
             try
             {
                 string version = GL.GetString(StringName.Version);
+
+                if (string.IsNullOrEmpty(version))
+                    throw new NoSuitableGraphicsDeviceException("Unable to retrieve OpenGL version");
+
                 string[] versionSplit = version.Split(' ');
                 if(versionSplit.Length > 2 && versionSplit[0].Equals("OpenGL") && versionSplit[1].Equals("ES"))
                 {
@@ -322,6 +326,10 @@ namespace Microsoft.Xna.Framework.Graphics
             try
             {
                 string version = GL.GetString(StringName.Version);
+
+                if (string.IsNullOrEmpty(version))
+                    throw new NoSuitableGraphicsDeviceException("Unable to retrieve OpenGL version");
+
                 glMajorVersion = Convert.ToInt32(version.Substring(0, 1));
                 glMinorVersion = Convert.ToInt32(version.Substring(2, 1));
             }
@@ -442,9 +450,15 @@ namespace Microsoft.Xna.Framework.Graphics
 				bufferMask = bufferMask | ClearBufferMask.DepthBufferBit;
 			}
 
-
-			GL.Clear(bufferMask);
-            GraphicsExtensions.CheckGLError();
+#if MONOMAC
+            if (GL.CheckFramebufferStatus(FramebufferTarget.FramebufferExt) == FramebufferErrorCode.FramebufferComplete)
+            {
+#endif
+                GL.Clear(bufferMask);
+                GraphicsExtensions.CheckGLError();
+#if MONOMAC
+            }
+#endif
            		
             // Restore the previous render state.
 		    ScissorRectangle = prevScissorRect;
