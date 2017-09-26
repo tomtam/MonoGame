@@ -56,6 +56,7 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Graphics
                 return;
 
             // VITA HACK!
+            /*
             var face = content.Faces[0][0];
             if (face.Width == 1920 && face.Height == 1080)
             {
@@ -74,12 +75,75 @@ namespace Microsoft.Xna.Framework.Content.Pipeline.Graphics
                 content.Faces[0].Clear();
                 content.Faces[0].Add(newFace);
             }
+            */
 
-            // If this is color just make sure the format is right and return it.
-            if (format == TextureProcessorOutputFormat.Color)
+            // (yet another) VITA HACK!
+            if (context.TargetPlatform == TargetPlatform.PSVita)
             {
-                content.ConvertBitmapType(typeof(PixelBitmapContent<Color>));
-                return;
+                if (format == TextureProcessorOutputFormat.Color)
+                {
+                    // If this texture's color-space fits within a 4-bit or 8-bit paletted texture
+                    // then convert it to that format, since it loses no quality.
+                    // note: this (and the subsequent conversion to a paletted texture) greatly slows down texture processing 
+                    //       do to being written super inefficiently!
+                    {
+                        HashSet<Color> palette = new HashSet<Color>();
+                        for (var i = 0; i < content.Faces.Count; i++)
+                        {
+                            var mipchain = content.Faces[i];
+                            for (var j = 0; j < mipchain.Count; j++)
+                            {
+                                var bmp = mipchain[j] as PixelBitmapContent<Vector4>;
+                                for (int y = 0; y < bmp.Height; y++)
+                                {
+                                    for (int x = 0; x < bmp.Width; x++)
+                                    {
+                                        var colf = bmp.GetPixel(x, y);
+                                        var col = new Color(colf.X, colf.Y, colf.Z, colf.W);
+                                        palette.Add(col);
+
+                                        if (palette.Count > 255)
+                                        {
+                                            goto done;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                    done:
+
+                        /*
+                        if (palette.Count <= 16)
+                        {
+
+                        }
+                        else*/
+                        if (palette.Count <= 255)
+                        {
+                            context.Logger.LogMessage("{0} unique colors - outputing a paletted texture", palette.Count);
+
+                            var mipchain = content.Faces[0];
+                            var face = mipchain[0];
+
+                            mipchain.Clear();
+
+                            var newFace = new P8BitmapContent(face.Width, face.Height);
+                            BitmapContent.Copy(face, newFace);
+
+                            mipchain.Add(newFace);
+
+                            return;
+                        }
+
+                        //context.Logger.LogMessage("{0} unique colors - outputing a full color texture", palette.Count);
+                    }
+
+                    // otherwise output full color
+
+                    content.ConvertBitmapType(typeof(PixelBitmapContent<Color>));
+                    return;
+                }
             }
 
             // Handle this common compression format.
