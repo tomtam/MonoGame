@@ -12,6 +12,7 @@ namespace Microsoft.Xna.Framework
     /// <summary>
     /// Describes a 32-bit packed color.
     /// </summary>
+    [Serializable]
     [DataContract]
     [DebuggerDisplay("{DebugDisplayString,nq}")]
     public struct Color : IEquatable<Color>
@@ -1865,7 +1866,7 @@ namespace Microsoft.Xna.Framework
         /// <returns><c>true</c> if the instances are equal; <c>false</c> otherwise.</returns>
         public bool Equals(Color other)
         {
-	    return this.PackedValue == other.PackedValue;
+            return _packedValue == other._packedValue;
         }
 
         #endregion
