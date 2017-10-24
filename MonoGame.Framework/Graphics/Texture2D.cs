@@ -320,6 +320,7 @@ namespace Microsoft.Xna.Framework.Graphics
         {
             var textureBounds = new Rectangle(0, 0, Math.Max(width >> level, 1), Math.Max(height >> level, 1));
             checkedRect = rect ?? textureBounds;
+            /*
             if (level < 0 || level >= LevelCount)
                 throw new ArgumentException("level must be smaller than the number of levels in this texture.");
             if (arraySlice > 0 && !GraphicsDevice.GraphicsCapabilities.SupportsTextureArrays)
@@ -365,6 +366,7 @@ namespace Microsoft.Xna.Framework.Graphics
                 throw new ArgumentException(string.Format("elementCount is not the right size, " +
                                             "elementCount * sizeof(T) is {0}, but data size is {1}.",
                                             elementCount * tSize, dataByteSize), "elementCount");
+            */
         }
 	}
 }
