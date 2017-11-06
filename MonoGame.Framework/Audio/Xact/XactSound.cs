@@ -367,7 +367,7 @@ namespace Microsoft.Xna.Framework.Audio
                 }
 
                 // We null the wave when it it stopped.
-                return _wave == null;
+                return _wave == null || _wave.State == SoundState.Stopped;
             }
         }
 
